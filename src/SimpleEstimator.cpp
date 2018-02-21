@@ -5,7 +5,8 @@
 #include "SimpleGraph.h"
 #include "SimpleEstimator.h"
 
-// TODO, something wrong with potNode count, at the least for end points...
+// TODO, are the esimates definitely calculated correctly?
+// TODO, create appropriate deconstructor
 
 SimpleEstimator::SimpleEstimator(std::shared_ptr<SimpleGraph> &g){
 
