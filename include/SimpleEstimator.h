@@ -21,6 +21,11 @@ class SimpleEstimator : public Estimator {
     // Number of nodes and number of labels.
     uint32_t N, L;
 
+    // Number of dimensions in pathProb.
+    uint32_t D = 3;
+    // Probabilities of all paths, up to three consecutive.
+    std::vector<std::pair<std::vector<std::pair<std::vector<float>, float>>, float>> pathProbs3;
+
 public:
     explicit SimpleEstimator(std::shared_ptr<SimpleGraph> &g);
     ~SimpleEstimator() = default;
@@ -29,6 +34,14 @@ public:
     cardStat estimate(RPQTree *q) override ;
     float calcProb(RPQTree *q);
 
+    void countPaths(std::vector<uint32_t> &pathVector, uint32_t node);
+    void countPaths(std::vector<std::pair<std::vector<uint32_t>, uint32_t>> &pathMatrix, uint32_t node);
+    void countPaths(std::vector<std::pair<std::vector<std::pair<std::vector<uint32_t>, uint32_t>>, uint32_t>> &pathMatrix,
+                    uint32_t node);
+
+    void convertQuery(RPQTree *q, std::vector<uint32_t> &query);
+
+    float calcProb(std::vector<uint32_t> query);
 };
 
 
