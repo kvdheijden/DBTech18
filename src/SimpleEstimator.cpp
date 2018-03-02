@@ -15,6 +15,11 @@ SimpleEstimator::SimpleEstimator(std::shared_ptr<SimpleGraph> &g){
 }
 
 void SimpleEstimator::prepare() {
+    //prepareFirst();
+    prepareBruteForce();
+}
+
+void SimpleEstimator::prepareFirst() {
 
     // Total number of nodes and number of different labels.
     N = (*graph).getNoVertices();
@@ -22,8 +27,8 @@ void SimpleEstimator::prepare() {
 
     // Different counts.
     // Total number of times a specific label occurs.
-    std::vector<uint32_t> labels;
-    labels.resize(L);
+    std::vector<uint32_t> amountOfOccurrencesOfLabels;
+    amountOfOccurrencesOfLabels.resize(L);
     // Total number of nodes with a specific outgoing label.
     nodesWithOutLabel.resize(L);
     // Total number of nodes with a specific incoming label.
@@ -44,7 +49,7 @@ void SimpleEstimator::prepare() {
         // Go through all transitions from this node.
         for ( const auto &t : n ) {
             uint32_t label = t.first;
-            labels[label]++;
+            amountOfOccurrencesOfLabels[label]++;
             if ( !seenLabelForNode[label] ) {
                 nodesWithOutLabel[label]++;
             }
@@ -68,14 +73,19 @@ void SimpleEstimator::prepare() {
     }
 
     // Calculate the transition label probabilities.
-    for ( int i = 0; i < labels.size(); i++) {
-        labelProbs[i] = ((float)labels[i])/((float)N);
-        std::cout << std::endl << "Label " << i << ": " << "Seen " << labels[i] << " times, Prob~: " << labelProbs[i];
+    for ( int i = 0; i < amountOfOccurrencesOfLabels.size(); i++) {
+        labelProbs[i] = ((float)amountOfOccurrencesOfLabels[i])/((float)N);
+        std::cout << std::endl << "Label " << i << ": " << "Seen " << amountOfOccurrencesOfLabels[i] << " times, Prob~: " << labelProbs[i];
     }
 
 }
 
 cardStat SimpleEstimator::estimate(RPQTree *q) {
+    //return estimateFirst(q);
+    return estimateBruteForce(q);
+}
+
+cardStat SimpleEstimator::estimateFirst(RPQTree *q) {
 
     // Counts of potential start nodes and end nodes for this query.
     uint32_t potStartNodeCount, potEndNodeCount;
@@ -112,6 +122,10 @@ cardStat SimpleEstimator::estimate(RPQTree *q) {
     // To calculate probs of remaining start and end path, just divide by start and end transition probs.
     firstLabelProb = labelProbs[firstLabelInt];
     lastLabelProb = labelProbs[lastLabelInt];
+
+    std::cout << "props" << firstLabelProb << "," << lastLabelProb << std::endl;
+    std::cout << "pots" << potStartNodeCount << "," << potEndNodeCount << std::endl;
+
     startPathProb = pathProb / firstLabelProb;
     endPathProb = pathProb / lastLabelProb;
 
@@ -122,6 +136,12 @@ cardStat SimpleEstimator::estimate(RPQTree *q) {
 
     std::cout << std::endl << potStartNodeCount;
     std::cout << std::endl << potEndNodeCount;
+    std::cout << std::endl << "start" << startNodes;
+    std::cout << std::endl << "end" << endNodes;
+    std::cout << std::endl << "pathProb" << pathProb;
+    std::cout << std::endl << "start" << startPathProb;
+    std::cout << std::endl << "end" << endPathProb;
+    std::cout << std::endl << "path" << pathProb;
 
     return cardStat {startNodes, paths, endNodes};
 }
@@ -146,4 +166,123 @@ float SimpleEstimator::calcProb(RPQTree *q) {
     }
 
     return prob;
+}
+
+void SimpleEstimator::prepareBruteForce()
+{
+    summary.resize((*graph).getNoVertices());
+
+    std::cout << (*graph).getNoEdges() << std::endl;
+    std::cout << (*graph).adj.size() << std::endl;
+    std::cout << (*graph).getNoVertices() << std::endl;
+    std::cout << (*graph).getNoLabels() << std::endl;
+    std::cout << summary.size() << std::endl;
+
+    for (size_t node = 1; node < (*graph).adj.size(); node++)
+    {
+        summary[node].resize(2);
+        summary[node][0].insert(summary[node][0].end(),
+                                (*graph).adj[node].begin(),
+                                (*graph).adj[node].end());
+    }
+
+
+    for (size_t node = 1; node < (*graph).reverse_adj.size(); node++)
+    {
+        summary[node][1].insert(summary[node][1].end(), (*graph).reverse_adj[node].begin(), (*graph).reverse_adj[node].end());
+    }
+}
+
+cardStat SimpleEstimator::estimateBruteForce(RPQTree *q)
+{
+    this->a_start_vertices = 0;
+    this->unique_end_vertices.clear();
+    int total = 0;
+    auto query = treeToString(q);
+
+    std::stringstream ss(query);
+    std::string item;
+    std::vector<std::string> path;
+
+    while (std::getline(ss, item, '/'))
+    {
+        path.push_back(item);
+    }
+
+    if (q != nullptr) {
+        for (size_t node = 1; node < summary.size(); node++) {
+            total += subestimateBruteForce(path, node, true);
+        }
+    }
+
+    return cardStat {this->a_start_vertices, total, this->unique_end_vertices.size()};
+}
+
+int SimpleEstimator::subestimateBruteForce(std::vector<std::string> path, int node, bool calculate_start_vertices)
+{
+    int total = 0;
+
+    if (path.size() == 0)
+    {
+        this->unique_end_vertices.insert(node);
+        return 1;
+    }
+
+    auto subpath = path;
+    subpath.erase(subpath.begin());
+
+    int dir = 0;
+
+    if (path[0][1] == '-')
+    {
+        dir = 1;
+    }
+
+    for (auto edge : summary[node][dir])
+    {
+        if (edge.first == std::atoi(&path[0][0]))
+        {
+            total += subestimateBruteForce(subpath, edge.second, false);
+
+            if (calculate_start_vertices && total > 0)
+            {
+                this->a_start_vertices++;
+                calculate_start_vertices = false;
+            }
+        }
+    }
+
+    return total;
+}
+
+int SimpleEstimator::estimateBruteForceStart(RPQTree *q)
+{
+    return 0;
+}
+
+int SimpleEstimator::estimateBruteForceEnd(RPQTree *q)
+{
+    return 0;
+}
+
+std::string SimpleEstimator::treeToString(RPQTree *q)
+{
+    std::string result;
+    std::string l, r;
+
+    if (q->right != nullptr)
+    {
+        r = treeToString(q->right);
+        result = r;
+    }
+
+    result = q->data + result;
+
+    if (q->left != nullptr)
+    {
+        l = treeToString(q->left);
+        result = l + result;
+    }
+
+    return result;
 }
