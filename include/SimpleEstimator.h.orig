@@ -24,16 +24,19 @@ class SimpleEstimator : public Estimator {
     // Number of nodes and number of labels.
     uint32_t N, L;
 
+<<<<<<< HEAD
     // Number of dimensions in pathProb.
     uint32_t D = 3;
     // Probabilities of all paths, up to three consecutive.
     std::vector<std::pair<std::vector<std::pair<std::vector<float>, float>>, float>> pathProbs3;
+=======
 
     //Brute force:
     std::vector<std::vector<std::vector<std::pair<uint32_t,uint32_t>>>> summary;
     uint32_t a_start_vertices;
     std::set<uint32_t> unique_end_vertices;
 
+>>>>>>> 10b433d97b8d3c898895b9d2c56c8930c5318d2d
 
 public:
     explicit SimpleEstimator(std::shared_ptr<SimpleGraph> &g);
@@ -47,6 +50,7 @@ public:
     cardStat estimateFirst(RPQTree *q);
     float calcProb(RPQTree *q);
 
+<<<<<<< HEAD
     void countPaths(std::vector<uint32_t> &pathVector, uint32_t node);
     void countPaths(std::vector<std::pair<std::vector<uint32_t>, uint32_t>> &pathMatrix, uint32_t node);
     void countPaths(std::vector<std::pair<std::vector<std::pair<std::vector<uint32_t>, uint32_t>>, uint32_t>> &pathMatrix,
@@ -55,7 +59,7 @@ public:
     void convertQuery(RPQTree *q, std::vector<uint32_t> &query);
 
     float calcProb(std::vector<uint32_t> query);
-
+=======
     //brute force:
     void prepareBruteForce();
     cardStat estimateBruteForce(RPQTree *q);
@@ -63,6 +67,7 @@ public:
     int subestimateBruteForce(std::vector<std::string> path, int node, bool calculate_start_vertices);
     int estimateBruteForceStart(RPQTree *q);
     int estimateBruteForceEnd(RPQTree *q);
+>>>>>>> 10b433d97b8d3c898895b9d2c56c8930c5318d2d
 };
 
 

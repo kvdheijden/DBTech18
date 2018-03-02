@@ -23,13 +23,13 @@ std::vector<query> parseQueries(std::string &fileName) {
     std::string line;
     std::ifstream graphFile { fileName };
 
-    std::regex edgePat (R"((.+),(.+),(.+))");
+    std::regex edgePath (R"((.+),(.+),(.+))");
 
     while(std::getline(graphFile, line)) {
         std::smatch matches;
 
         // match edge data
-        if(std::regex_search(line, matches, edgePat)) {
+        if(std::regex_search(line, matches, edgePath)) {
             auto s = matches[1];
             auto path = matches[2];
             auto t = matches[3];
