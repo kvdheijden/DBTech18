@@ -42,19 +42,18 @@ public:
     void prepare() override ;
     cardStat estimate(RPQTree *q) override ;
 
+    // Change this to 0 for path prob. and 1 for brute force.
+    int estimateMethod = 0;
+
     //first attempt:
     void prepareFirst();
     cardStat estimateFirst(RPQTree *q);
-    float calcProb(RPQTree *q);
-
+    void convertQuery(RPQTree *q, std::vector<uint32_t> &query);
+    float calcProb(std::vector<uint32_t> query);
     void countPaths(std::vector<uint32_t> &pathVector, uint32_t node);
     void countPaths(std::vector<std::pair<std::vector<uint32_t>, uint32_t>> &pathMatrix, uint32_t node);
     void countPaths(std::vector<std::pair<std::vector<std::pair<std::vector<uint32_t>, uint32_t>>, uint32_t>> &pathMatrix,
                     uint32_t node);
-
-    void convertQuery(RPQTree *q, std::vector<uint32_t> &query);
-
-    float calcProb(std::vector<uint32_t> query);
 
     //brute force:
     void prepareBruteForce();

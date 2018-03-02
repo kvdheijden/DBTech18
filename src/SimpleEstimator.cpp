@@ -6,6 +6,7 @@
 #include "SimpleEstimator.h"
 
 // TODO, are the esimates definitely calculated correctly?
+// TODO, is built in estimator definitely correct? Does not agree with our brute-force method...
 // TODO, create appropriate deconstructor
 
 SimpleEstimator::SimpleEstimator(std::shared_ptr<SimpleGraph> &g){
@@ -15,8 +16,11 @@ SimpleEstimator::SimpleEstimator(std::shared_ptr<SimpleGraph> &g){
 }
 
 void SimpleEstimator::prepare() {
-    //prepareFirst();
-    prepareBruteForce();
+    if (estimateMethod == 0) {
+        prepareFirst();
+    } else {
+        prepareBruteForce();
+    }
 }
 
 void SimpleEstimator::prepareFirst() {
@@ -24,11 +28,6 @@ void SimpleEstimator::prepareFirst() {
     // Total number of nodes and number of different labels.
     N = (*graph).getNoVertices();
     L = (*graph).getNoLabels();
-
-    // Different counts.
-    // Total number of times a specific label occurs.
-    std::vector<uint32_t> labels1;
-    labels1.resize(L);
 
     // ADAPT
     // Total number of times a specific set of (at most three) labels occurs.
@@ -52,9 +51,6 @@ void SimpleEstimator::prepareFirst() {
     //std::cout << std::endl << "Number of occurences of 0+/0-/0+ = " << labels3[0].first[L].first[0] << std::endl;
     //std::cout << std::endl << "Number of occurences of 0+/0- = " << labels3[0].first[L].second << std::endl;
 
-    // This can be left as-is (probably).
-    // TODO, remove single transition counts.
-    // =============================================================================================
     // Total number of nodes with a specific outgoing label.
     nodesWithOutLabel.resize(L);
     // Total number of nodes with a specific incoming label.
@@ -75,7 +71,6 @@ void SimpleEstimator::prepareFirst() {
         // Go through all transitions from this node.
         for ( const auto &t : n ) {
             uint32_t label = t.first;
-            labels1[label]++;
             if ( !seenLabelForNode[label] ) {
                 nodesWithOutLabel[label]++;
                 seenLabelForNode[label] = true;
@@ -99,9 +94,9 @@ void SimpleEstimator::prepareFirst() {
             }
         }
     }
-    // =============================================================================================
 
     // ADAPT
+    // Turn counts into ~probabilites by dividing by N.
     pathProbs3.resize(2*L);
     for (int i = 0; i < 2*L; i++) {
         pathProbs3[i].first.resize(2*L);
@@ -114,18 +109,9 @@ void SimpleEstimator::prepareFirst() {
             }
         }
     }
-
-    // Outdated.
-    // ===============================================================================================
-    // Calculate the transition label probabilities.
-    /*for ( int i = 0; i < labels1.size(); i++) {
-        labelProbs[i] = ((float)labels1[i])/((float)N);
-        //std::cout << std::endl << "Label " << i << ": " << "Seen " << labels1[i] << " times, Prob~: " << labelProbs[i];
-    }*/
-    // ================================================================================================
-
 }
 
+// TODO, make this nice and recursive with template.
 // ADAPT, add new func.
 
 // Function that takes a vector of vectors. It goes through all connecting nodes and either:
@@ -218,8 +204,11 @@ void SimpleEstimator::countPaths(std::vector<uint32_t>& pathVector, uint32_t nod
 }
 
 cardStat SimpleEstimator::estimate(RPQTree *q) {
-    //return estimateFirst(q);
-    return estimateBruteForce(q);
+    if (estimateMethod == 0) {
+        return estimateFirst(q);
+    } else {
+        return estimateBruteForce(q);
+    }
 }
 
 cardStat SimpleEstimator::estimateFirst(RPQTree *q) {
@@ -239,8 +228,6 @@ cardStat SimpleEstimator::estimateFirst(RPQTree *q) {
     std::string lastLabel = rightmost->data;
     uint32_t firstLabelInt = std::stoi(firstLabel);
     uint32_t lastLabelInt = std::stoi(lastLabel);
-    //std::cout << std::endl << "First label: " << firstLabel;
-    //std::cout << std::endl << "Last label: " << lastLabel;
 
     if ( firstLabel[1] == '+' ) {
         potStartNodeCount = nodesWithOutLabel[firstLabelInt];
@@ -254,7 +241,6 @@ cardStat SimpleEstimator::estimateFirst(RPQTree *q) {
         potEndNodeCount = nodesWithOutLabel[lastLabelInt];
     }
 
-    // TODO
     // Traverse tree in order to store query in vector format.
     // Then calculate path probs for:
     // - Once completely
@@ -274,36 +260,12 @@ cardStat SimpleEstimator::estimateFirst(RPQTree *q) {
     endQuery.pop_back();
     endPathProb = calcProb(endQuery);
 
-    /*std::cout << "Converted QUERY: ";
-    for (int i = 0; i < query.size(); ++i) {
-        std::cout << query[i];
-    }
-    std::cout << std::endl;*/
-
-    // Outdated.
-    // ======================================================================================================
-    // Go through whole tree and multiply the probs of all transitions that are encountered recursively.
-    /*pathProb = calcProb(q);
-    // To calculate probs of remaining start and end path, just divide by start and end transition probs.
-    firstLabelProb = labelProbs[firstLabelInt];
-    lastLabelProb = labelProbs[lastLabelInt];
-
-    std::cout << "props" << firstLabelProb << "," << lastLabelProb << std::endl;
-    std::cout << "pots" << potStartNodeCount << "," << potEndNodeCount << std::endl;
-
-    startPathProb = pathProb / firstLabelProb;
-    endPathProb = pathProb / lastLabelProb;*/
-    // ========================================================================================================
-
     // To obtain final metrics, multiply path prob by N and start/end by the respective potNodeCounts.
     paths = (int)(pathProb*((float)N));
     startNodes = (int)(startPathProb*((float)potStartNodeCount));
     endNodes = (int)(endPathProb*((float)potEndNodeCount));
 
     // TODO, (not necessary) fix the start and end node estimations
-
-    //std::cout << std::endl << potStartNodeCount;
-    //std::cout << std::endl << potEndNodeCount;
 
     return cardStat {startNodes, paths, endNodes};
 }
@@ -340,28 +302,9 @@ float SimpleEstimator::calcProb(std::vector<uint32_t> query) {
 
         return prob;
     }
-
-
-    /*int qs = query.size();
-    float prob = 1;
-    for (int i = 0; i < qs; i = i + 3) {
-        if (qs - i >= 3) {
-            uint32_t t1 = query[i];
-            uint32_t t2 = query[i+1];
-            uint32_t t3 = query[i+2];
-            prob *= pathProbs3[t1].first[t2].first[t3];
-        } else if (qs - i >= 2) {
-            uint32_t t1 = query[i];
-            uint32_t t2 = query[i+1];
-            prob *= pathProbs3[t1].first[t2].second;
-        } else {
-            uint32_t t1 = query[i];
-            prob *= pathProbs3[t1].second;
-        }
-    }
-    return prob;*/
 }
 
+// Converts query tree to vector with query parts in order. 1+/2+/0-/3- with L = 4 is coded as 1,0,0+L,3+L = 1,0,4,7.
 void SimpleEstimator::convertQuery(RPQTree *q, std::vector<uint32_t>& query) {
     // First go to left leaf. If there is any useful data, append it to the query. Then go to right leaf.
 
