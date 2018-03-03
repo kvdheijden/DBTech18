@@ -13,19 +13,22 @@ class SimpleEstimator : public Estimator {
 
     std::shared_ptr<SimpleGraph> graph;
 
-    //first attempt:
     // Different counts needed after prep.
     // Total number of nodes with a specific outgoing label.
     std::vector<uint32_t> nodesWithOutLabel;
+
     // Total number of nodes with a specific incoming label.
     std::vector<uint32_t> nodesWithInLabel;
-    // The ~probability for each label to occur (same for incoming and outgoing).
-    std::vector<float> labelProbs;
+
     // Number of nodes and number of labels.
-    uint32_t N, L;
+    const uint32_t N, L;
 
     // Number of dimensions in pathProb.
-    uint32_t D = 3;
+    const uint32_t D = 3;
+
+    // The ~probability for each label to occur (same for incoming and outgoing).
+    std::vector<float> labelProbs;
+
     // Probabilities of all paths, up to three consecutive.
     std::vector<std::pair<std::vector<std::pair<std::vector<float>, float>>, float>> pathProbs3;
 
@@ -50,18 +53,17 @@ public:
     cardStat estimateFirst(RPQTree *q);
     void convertQuery(RPQTree *q, std::vector<uint32_t> &query);
     float calcProb(std::vector<uint32_t> query);
-    void countPaths(std::vector<uint32_t> &pathVector, uint32_t node);
-    void countPaths(std::vector<std::pair<std::vector<uint32_t>, uint32_t>> &pathMatrix, uint32_t node);
-    void countPaths(std::vector<std::pair<std::vector<std::pair<std::vector<uint32_t>, uint32_t>>, uint32_t>> &pathMatrix,
-                    uint32_t node);
+//    void countPaths(std::vector<uint32_t> &pathMatrix, uint32_t node);
+//    void countPaths(std::vector<std::pair<std::vector<uint32_t>, uint32_t>> &pathMatrix, uint32_t node);
+//    void countPaths(std::vector<std::pair<std::vector<std::pair<std::vector<uint32_t>, uint32_t>>, uint32_t>> &pathMatrix,
+//                    uint32_t node);
+    template <typename T> void countPaths(std::vector<T> &path, uint32_t node);
 
     //brute force:
     void prepareBruteForce();
     cardStat estimateBruteForce(RPQTree *q);
     std::string treeToString(RPQTree *q);
-    int subestimateBruteForce(std::vector<std::string> path, int node, bool calculate_start_vertices);
-    int estimateBruteForceStart(RPQTree *q);
-    int estimateBruteForceEnd(RPQTree *q);
+    int subestimateBruteForce(std::vector<std::string> path, uint32_t node, bool calculate_start_vertices);
 };
 
 
