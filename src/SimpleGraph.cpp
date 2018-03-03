@@ -79,13 +79,13 @@ void SimpleGraph::readFromContiguousFile(const std::string &fileName) {
     std::string line;
     std::ifstream graphFile { fileName };
 
-    std::regex edgePat (R"((\d+)\s(\d+)\s(\d+)\s\.)"); // subject predicate object .
-    std::regex headerPat (R"((\d+),(\d+),(\d+))"); // noNodes,noEdges,noLabels
+    std::regex edgePath (R"((\d+)\s(\d+)\s(\d+)\s\.)"); // subject predicate object .
+    std::regex headerPath (R"((\d+),(\d+),(\d+))"); // noNodes,noEdges,noLabels
 
     // parse the header (1st line)
     std::getline(graphFile, line);
     std::smatch matches;
-    if(std::regex_search(line, matches, headerPat)) {
+    if(std::regex_search(line, matches, headerPath)) {
         uint32_t noNodes = (uint32_t) std::stoul(matches[1]);
         uint32_t noLabels = (uint32_t) std::stoul(matches[3]);
 
@@ -98,7 +98,7 @@ void SimpleGraph::readFromContiguousFile(const std::string &fileName) {
     // parse edge data
     while(std::getline(graphFile, line)) {
 
-        if(std::regex_search(line, matches, edgePat)) {
+        if(std::regex_search(line, matches, edgePath)) {
             uint32_t subject = (uint32_t) std::stoul(matches[1]);
             uint32_t predicate = (uint32_t) std::stoul(matches[2]);
             uint32_t object = (uint32_t) std::stoul(matches[3]);
