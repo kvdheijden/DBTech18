@@ -2,13 +2,17 @@
 // Created by Nikolay Yakovets on 2018-02-01.
 //
 
+#include <random>
+#include <iostream>
+#include <iterator>
+#include <algorithm>
 #include "SimpleGraph.h"
 #include "SimpleEstimator.h"
 
 // TODO, are the esimates definitely calculated correctly?
-// TODO, is built in estimator definitely correct? Does not agree with our brute-force method...
+// DONE, is built in estimator definitely correct? Does not agree with our brute-force method... <- fixed by pr
 
-// TODO, create appropriate deconstructor <-- This is not needed. We only use the stack, so no deconstruction is necessary
+// DONE, create appropriate deconstructor <-- This is not needed. We only use the stack, so no deconstruction is necessary
 
 SimpleEstimator::SimpleEstimator(std::shared_ptr<SimpleGraph> &g) :
     N(g->getNoVertices()), L(g->getNoLabels()),
@@ -22,8 +26,10 @@ SimpleEstimator::SimpleEstimator(std::shared_ptr<SimpleGraph> &g) :
 void SimpleEstimator::prepare() {
     if (estimateMethod == 0) {
         prepareFirst();
-    } else {
+    } else if (estimateMethod == 1){
         prepareBruteForce();
+    } else if (estimateMethod == 2){
+        prepareSampling();
     }
 }
 
@@ -141,8 +147,10 @@ void SimpleEstimator::countPaths<uint32_t>(std::vector<uint32_t>& path, uint32_t
 cardStat SimpleEstimator::estimate(RPQTree *q) {
     if (estimateMethod == 0) {
         return estimateFirst(q);
-    } else {
+    } else if (estimateMethod == 1) {
         return estimateBruteForce(q);
+    } else if (estimateMethod == 2) {
+        return estimateSampling(q);
     }
 }
 
@@ -269,13 +277,7 @@ void SimpleEstimator::prepareBruteForce()
 {
     summary.resize(graph->getNoVertices());
 
-    std::cout << graph->getNoEdges() << std::endl;
-    std::cout << graph->adj.size() << std::endl;
-    std::cout << graph->getNoVertices() << std::endl;
-    std::cout << graph->getNoLabels() << std::endl;
-    std::cout << summary.size() << std::endl;
-
-    for (size_t node = 1; node < graph->adj.size(); node++)
+    for (size_t node = 0; node < graph->adj.size(); node++)
     {
         summary[node].resize(2);
         summary[node][0].insert(summary[node][0].end(),
@@ -283,7 +285,33 @@ void SimpleEstimator::prepareBruteForce()
                                 graph->adj[node].end());
     }
 
-    for (size_t node = 1; node < graph->reverse_adj.size(); node++)
+    for (size_t node = 0; node < graph->reverse_adj.size(); node++)
+    {
+        summary[node][1].insert(summary[node][1].end(), graph->reverse_adj[node].begin(), graph->reverse_adj[node].end());
+    }
+}
+
+void SimpleEstimator::prepareSampling()
+{
+    auto max_size = graph->getNoVertices();
+    auto total_samples = (int)floor(max_size/sampling_factor);
+
+    for (;sample.size() <= total_samples;)
+    {
+        sample.insert(rand() % static_cast<uint32_t>(max_size));
+    }
+
+    summary.resize(graph->getNoVertices());
+
+    for (size_t node = 0; node < graph->adj.size(); node++)
+    {
+        summary[node].resize(2);
+        summary[node][0].insert(summary[node][0].end(),
+                                graph->adj[node].begin(),
+                                graph->adj[node].end());
+    }
+
+    for (size_t node = 0; node < graph->reverse_adj.size(); node++)
     {
         summary[node][1].insert(summary[node][1].end(), graph->reverse_adj[node].begin(), graph->reverse_adj[node].end());
     }
@@ -306,14 +334,63 @@ cardStat SimpleEstimator::estimateBruteForce(RPQTree *q)
     }
 
     if (q != nullptr) {
-        for (size_t node = 1; node < summary.size(); node++) {
+        for (size_t node = 0; node < summary.size(); node++) {
             this->unique_end_vertices_per_vertex.clear();
-            subestimateBruteForce(path, node, true);
+            subestimateBruteForce(path, node, calculate_in_and_out);
             total += this->unique_end_vertices_per_vertex.size();
         }
     }
 
-    return cardStat {this->a_start_vertices, total, this->unique_end_vertices.size()};
+    if (calculate_in_and_out) {
+        return cardStat {this->a_start_vertices, total, static_cast<uint32_t>(this->unique_end_vertices.size())};
+    }
+    else
+    {
+        return cardStat {0, total, 0};
+    }
+}
+
+cardStat SimpleEstimator::estimateSampling(RPQTree *q)
+{
+    if (sampling_factor <= 1)
+    {
+        return estimateBruteForce(q);
+    }
+
+    this->a_start_vertices = 0;
+    this->unique_end_vertices.clear();
+    uint32_t total = 0;
+    auto query = treeToString(q);
+
+    std::stringstream ss(query);
+    std::string item;
+    std::vector<std::string> path;
+
+    while (std::getline(ss, item, '/'))
+    {
+        path.push_back(item);
+    }
+
+    if (q != nullptr)
+    {
+        for (auto i = sample.begin(); i != sample.end(); i++)
+        {
+            this->unique_end_vertices_per_vertex.clear();
+            subestimateBruteForce(path, *i, calculate_in_and_out);
+            total += this->unique_end_vertices_per_vertex.size();
+        }
+    }
+
+    total *= sampling_factor;
+
+    if (calculate_in_and_out)
+    {
+        return cardStat {this->a_start_vertices, total, static_cast<uint32_t>(this->unique_end_vertices.size())};
+    }
+    else
+    {
+        return cardStat {0, total, 0};
+    }
 }
 
 int SimpleEstimator::subestimateBruteForce(std::vector<std::string> path, uint32_t node, bool calculate_start_vertices)
@@ -322,7 +399,11 @@ int SimpleEstimator::subestimateBruteForce(std::vector<std::string> path, uint32
 
     if (path.empty())
     {
-        this->unique_end_vertices.insert(node);
+        if (calculate_in_and_out)
+        {
+            this->unique_end_vertices.insert(node);
+        }
+
         this->unique_end_vertices_per_vertex.insert(node);
         return 1;
     }

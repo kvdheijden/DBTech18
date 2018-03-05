@@ -37,8 +37,12 @@ class SimpleEstimator : public Estimator {
     uint32_t a_start_vertices;
     std::set<uint32_t> unique_end_vertices;
     std::set<uint32_t> unique_end_vertices_per_vertex;
+    std::set<uint32_t> sample;
 
+    // Sampling factor = 1/sampling_factor, so 2 = 50%, 4 = 25%, etc.
+    const uint32_t sampling_factor = 128;
 
+    const bool calculate_in_and_out = false;
 public:
     explicit SimpleEstimator(std::shared_ptr<SimpleGraph> &g);
     ~SimpleEstimator() = default;
@@ -46,8 +50,8 @@ public:
     void prepare() override ;
     cardStat estimate(RPQTree *q) override ;
 
-    // Change this to 0 for path prob. and 1 for brute force.
-    int estimateMethod = 1;
+    // Change this to 0 for path prob. , 1 for brute force and 2 for sampling.
+    int estimateMethod = 2;
 
     //first attempt:
     void prepareFirst();
@@ -63,6 +67,9 @@ public:
     //brute force:
     void prepareBruteForce();
     cardStat estimateBruteForce(RPQTree *q);
+    //sampling:
+    void prepareSampling();
+    cardStat estimateSampling(RPQTree *q);
     std::string treeToString(RPQTree *q);
     int subestimateBruteForce(std::vector<std::string> path, uint32_t node, bool calculate_start_vertices);
 };
