@@ -307,7 +307,9 @@ cardStat SimpleEstimator::estimateBruteForce(RPQTree *q)
 
     if (q != nullptr) {
         for (size_t node = 1; node < summary.size(); node++) {
-            total += subestimateBruteForce(path, node, true);
+            this->unique_end_vertices_per_vertex.clear();
+            subestimateBruteForce(path, node, true);
+            total += this->unique_end_vertices_per_vertex.size();
         }
     }
 
@@ -321,6 +323,7 @@ int SimpleEstimator::subestimateBruteForce(std::vector<std::string> path, uint32
     if (path.empty())
     {
         this->unique_end_vertices.insert(node);
+        this->unique_end_vertices_per_vertex.insert(node);
         return 1;
     }
 
@@ -354,22 +357,10 @@ int SimpleEstimator::subestimateBruteForce(std::vector<std::string> path, uint32
 
 std::string SimpleEstimator::treeToString(RPQTree *q)
 {
-    std::string result;
-    std::string l, r;
-
-    if (q->right != nullptr)
+    if (q == nullptr)
     {
-        r = treeToString(q->right);
-        result = r;
+        return "";
     }
 
-    result = q->data + result;
-
-    if (q->left != nullptr)
-    {
-        l = treeToString(q->left);
-        result = l + result;
-    }
-
-    return result;
+    return treeToString(q->left) + q->data + treeToString(q->right);
 }

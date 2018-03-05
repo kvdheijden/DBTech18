@@ -36,6 +36,7 @@ class SimpleEstimator : public Estimator {
     std::vector<std::vector<std::vector<std::pair<uint32_t,uint32_t>>>> summary;
     uint32_t a_start_vertices;
     std::set<uint32_t> unique_end_vertices;
+    std::set<uint32_t> unique_end_vertices_per_vertex;
 
 
 public:
@@ -46,7 +47,7 @@ public:
     cardStat estimate(RPQTree *q) override ;
 
     // Change this to 0 for path prob. and 1 for brute force.
-    int estimateMethod = 0;
+    int estimateMethod = 1;
 
     //first attempt:
     void prepareFirst();
