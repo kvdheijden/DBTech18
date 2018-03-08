@@ -51,7 +51,7 @@ public:
     cardStat estimate(RPQTree *q) override ;
 
     // Change this to 0 for path prob. , 1 for brute force and 2 for sampling.
-    int estimateMethod = 2;
+    int estimateMethod = 0;
 
     //first attempt:
     void prepareFirst();
