@@ -93,8 +93,6 @@ void SimpleEstimator::prepareFirst() {
         }
     }
 
-
-    std::cout << std::endl << pathProbs3[9].first[8].first[17] * N;
 }
 
 template<typename T>
@@ -241,8 +239,6 @@ float SimpleEstimator::calcProb(std::vector<uint32_t> query) {
         uint32_t t2 = query[1];
         uint32_t t3 = query[2];
         prob = pathProbs3[t1].first[t2].first[t3];
-
-        std::cout << std::endl << t1 << t2 << t3 << prob;
 
         for (int i = 0; i < qs-3; ++i) {
             t1 = query[i+1];
