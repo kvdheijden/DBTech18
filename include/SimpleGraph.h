@@ -5,12 +5,8 @@
 #ifndef QS_SIMPLEGRAPH_H
 #define QS_SIMPLEGRAPH_H
 
-#include <unordered_map>
-#include <unordered_set>
-#include <vector>
-#include <iostream>
-#include <regex>
-#include <fstream>
+#include "stdafx.h"
+
 #include "Graph.h"
 
 class SimpleGraph : public Graph {

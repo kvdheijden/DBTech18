@@ -84,8 +84,8 @@ void SimpleGraph::readFromContiguousFile(const std::string &fileName) {
 
     // parse the header (1st line)
     std::getline(graphFile, line);
-    std::smatch matches;
-    if(std::regex_search(line, matches, headerPath)) {
+    std::cmatch matches;
+    if(std::regex_search(line.c_str(), matches, headerPath)) {
         uint32_t noNodes = (uint32_t) std::stoul(matches[1]);
         uint32_t noLabels = (uint32_t) std::stoul(matches[3]);
 
@@ -98,7 +98,7 @@ void SimpleGraph::readFromContiguousFile(const std::string &fileName) {
     // parse edge data
     while(std::getline(graphFile, line)) {
 
-        if(std::regex_search(line, matches, edgePath)) {
+        if(std::regex_search(line.c_str(), matches, edgePath)) {
             uint32_t subject = (uint32_t) std::stoul(matches[1]);
             uint32_t predicate = (uint32_t) std::stoul(matches[2]);
             uint32_t object = (uint32_t) std::stoul(matches[3]);

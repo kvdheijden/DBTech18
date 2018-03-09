@@ -5,18 +5,10 @@
 #ifndef QS_ESTIMATOR_H
 #define QS_ESTIMATOR_H
 
+#include "stdafx.h"
+
+#include "cardStat.h"
 #include "RPQTree.h"
-#include <iostream>
-
-struct cardStat {
-    uint32_t noOut;
-    uint32_t noPaths;
-    uint32_t noIn;
-
-    void print() {
-        std::cout << "(" << noOut << ", " << noPaths << ", " << noIn << ")" << std::endl;
-    }
-};
 
 class Estimator {
 

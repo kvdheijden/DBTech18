@@ -1,10 +1,8 @@
-#include <iostream>
-#include <chrono>
-#include <SimpleGraph.h>
-#include <Estimator.h>
-#include <SimpleEstimator.h>
-#include <SimpleEvaluator.h>
+#include "stdafx.h"
 
+#include "SimpleGraph.h"
+#include "SimpleEstimator.h"
+#include "SimpleEvaluator.h"
 
 struct query {
     std::string s;
@@ -26,10 +24,10 @@ std::vector<query> parseQueries(std::string &fileName) {
     std::regex edgePath (R"((.+),(.+),(.+))");
 
     while(std::getline(graphFile, line)) {
-        std::smatch matches;
+        std::cmatch matches;
 
         // match edge data
-        if(std::regex_search(line, matches, edgePath)) {
+        if(std::regex_search(line.c_str(), matches, edgePath)) {
             auto s = matches[1];
             auto path = matches[2];
             auto t = matches[3];
@@ -40,14 +38,13 @@ std::vector<query> parseQueries(std::string &fileName) {
 
     graphFile.close();
 
-    if(queries.size() == 0) std::cout << "Did not parse any queries... Check query file." << std::endl;
+    if(queries.empty()) std::cout << "Did not parse any queries... Check query file." << std::endl;
 
     return queries;
 }
 
 
 int main(int argc, char *argv[]) {
-
     if(argc < 3) {
         std::cout << "Usage: quicksilver <graphFile> <queriesFile>" << std::endl;
         return 0;
@@ -113,10 +110,9 @@ int main(int argc, char *argv[]) {
 
         // clean-up
         delete(queryTree);
-
     }
 
-
+    std::cout.flush();
 }
 
 

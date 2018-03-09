@@ -5,9 +5,11 @@
 #ifndef QS_SIMPLEESTIMATOR_H
 #define QS_SIMPLEESTIMATOR_H
 
+#include "stdafx.h"
+
 #include "Estimator.h"
 #include "SimpleGraph.h"
-#include <set>
+
 
 class SimpleEstimator : public Estimator {
 
@@ -39,39 +41,44 @@ class SimpleEstimator : public Estimator {
     std::set<uint32_t> unique_end_vertices_per_vertex;
     std::set<uint32_t> sample;
 
-    // Sampling factor = 1/sampling_factor, so 2 = 50%, 4 = 25%, etc.
-    const uint32_t sampling_factor = 128;
+    // RNG initialization
+    std::random_device r;
 
-    const bool calculate_in_and_out = false;
+    // Sampling factor = 1/sampling_factor, so 2 = 50%, 4 = 25%, etc.
+    static const uint32_t sampling_factor = 128;
+
+    // Calculate in and output nodes
+    static const bool calculate_in_and_out = false;
+
+    // Used algorithm
+    static const enum {
+        PATH_PROBABILITY,
+        SAMPLING,
+        BRUTE_FORCE
+    } estimateMethod = SAMPLING;
 public:
     explicit SimpleEstimator(std::shared_ptr<SimpleGraph> &g);
+
     ~SimpleEstimator() = default;
 
     void prepare() override ;
     cardStat estimate(RPQTree *q) override ;
 
-    // Change this to 0 for path prob. , 1 for brute force and 2 for sampling.
-    int estimateMethod = 2;
-
     //first attempt:
-    void prepareFirst();
-    cardStat estimateFirst(RPQTree *q);
+    void prepareProbability();
+    cardStat estimateProbability(RPQTree *q);
     void convertQuery(RPQTree *q, std::vector<uint32_t> &query);
     float calcProb(std::vector<uint32_t> query);
-//    void countPaths(std::vector<uint32_t> &pathMatrix, uint32_t node);
-//    void countPaths(std::vector<std::pair<std::vector<uint32_t>, uint32_t>> &pathMatrix, uint32_t node);
-//    void countPaths(std::vector<std::pair<std::vector<std::pair<std::vector<uint32_t>, uint32_t>>, uint32_t>> &pathMatrix,
-//                    uint32_t node);
     template <typename T> void countPaths(std::vector<T> &path, uint32_t node);
 
     //brute force:
     void prepareBruteForce();
     cardStat estimateBruteForce(RPQTree *q);
+    int subEstimateBruteForce(const std::vector<std::string>& path, uint32_t node, bool calculate_start_vertices);
+
     //sampling:
     void prepareSampling();
     cardStat estimateSampling(RPQTree *q);
-    std::string treeToString(RPQTree *q);
-    int subestimateBruteForce(std::vector<std::string> path, uint32_t node, bool calculate_start_vertices);
 };
 
 

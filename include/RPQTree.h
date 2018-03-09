@@ -5,8 +5,7 @@
 #ifndef QS_RPQTREE_H
 #define QS_RPQTREE_H
 
-#include <string>
-#include <algorithm>
+#include "stdafx.h"
 
 class RPQTree {
 
@@ -27,6 +26,7 @@ public:
     bool isUnary();
     bool isBinary();
 
+    std::string toString() const;
 };
 
 

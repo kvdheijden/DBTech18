@@ -2,7 +2,6 @@
 // Created by Nikolay Yakovets on 2018-02-02.
 //
 
-#include "SimpleEstimator.h"
 #include "SimpleEvaluator.h"
 
 SimpleEvaluator::SimpleEvaluator(std::shared_ptr<SimpleGraph> &g) {
@@ -99,15 +98,15 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::evaluate_aux(RPQTree *q) {
         std::regex directLabel (R"((\d+)\+)");
         std::regex inverseLabel (R"((\d+)\-)");
 
-        std::smatch matches;
+        std::cmatch matches;
 
         uint32_t label;
         bool inverse;
 
-        if(std::regex_search(q->data, matches, directLabel)) {
+        if(std::regex_search(q->data.c_str(), matches, directLabel)) {
             label = (uint32_t) std::stoul(matches[1]);
             inverse = false;
-        } else if(std::regex_search(q->data, matches, inverseLabel)) {
+        } else if(std::regex_search(q->data.c_str(), matches, inverseLabel)) {
             label = (uint32_t) std::stoul(matches[1]);
             inverse = true;
         } else {
