@@ -8,7 +8,10 @@
 #define PATH_PROBABILITY    (0x01)
 #define SAMPLING            (0x02)
 #define BRUTE_FORCE         (0x03)
+
+#ifndef ESTIMATE_METHOD
 #define ESTIMATE_METHOD     SAMPLING
+#endif
 
 #if ESTIMATE_METHOD == PATH_PROBABILITY
 #include <vector>
@@ -21,19 +24,28 @@
 #include "Estimator.h"
 #include "SimpleGraph.h"
 
+#if ESTIMATE_METHOD == PATH_PROBABILITY
+template <typename T, size_t N> struct dimArr : public std::vector<std::pair<dimArr<T, N-1>, T>> {
+    void init(size_t n, T val);
+};
+template <typename T> struct dimArr<T, 1> : public std::vector<T> {
+    void init(size_t n, T val);
+};
+template <typename T> struct dimArr<T, 0> {dimArr() = delete;};
+#endif
+
 class SimpleEstimator : public Estimator {
 private:
     std::shared_ptr<SimpleGraph> graph;
 
 #if ESTIMATE_METHOD == PATH_PROBABILITY
     // Number of dimensions in pathProb.
-    static const uint32_t D = 3;
+    static const uint32_t D = 2;
 
     // Path probability:
     std::vector<uint32_t> nodesWithOutLabel;
     std::vector<uint32_t> nodesWithInLabel;
-    std::vector<float> labelProbabilities;
-    std::vector<std::pair<std::vector<std::pair<std::vector<float>, float>>, float>> pathProbabilities;
+    dimArr<float, D> pathProbabilities;
 #elif (ESTIMATE_METHOD == SAMPLING) || (ESTIMATE_METHOD == BRUTE_FORCE)
     // Sampling/Brute force:
     std::vector<std::vector<std::pair<uint32_t, uint32_t>>> summary;
@@ -70,8 +82,10 @@ public:
     void prepareProbability();
     cardStat estimateProbability(RPQTree *q);
     void convertQuery(RPQTree *q, std::vector<uint32_t> &query);
-    float calcProb(std::vector<uint32_t> query);
-    template <typename T> void countPaths(std::vector<T> &path, uint32_t node);
+    template <size_t S> float calcProbRecursive(const std::vector<uint32_t>& query, const dimArr<float, S>& probabilities);
+    template <size_t S> float calcProb(std::vector<uint32_t> query, const dimArr<float, S>& probabilities);
+    template <size_t S> void countPaths(dimArr<uint32_t, S> &path, uint32_t node);
+    template <size_t S> void calculatePathProbabilities(dimArr<float, S>& labelProbabilities, const dimArr<uint32_t, S>& labelCounts);
 #elif ESTIMATE_METHOD == SAMPLING
     // sampling:
     void prepareSampling();
