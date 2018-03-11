@@ -2,17 +2,26 @@
 // Created by Nikolay Yakovets on 2018-02-02.
 //
 
+#include "SimpleEstimator.h"
 #include "SimpleEvaluator.h"
 
 SimpleEvaluator::SimpleEvaluator(std::shared_ptr<SimpleGraph> &g) {
 
     // works only with SimpleGraph
     graph = g;
+    est = nullptr; // estimator not attached by default
+}
+
+void SimpleEvaluator::attachEstimator(std::shared_ptr<SimpleEstimator> &e) {
+    est = e;
 }
 
 void SimpleEvaluator::prepare() {
 
-    // nothing to prepare..
+    // if attached, prepare the estimator
+    if(est != nullptr) est->prepare();
+
+    // prepare other things here.., if necessary
 
 }
 
@@ -98,15 +107,15 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::evaluate_aux(RPQTree *q) {
         std::regex directLabel (R"((\d+)\+)");
         std::regex inverseLabel (R"((\d+)\-)");
 
-        std::cmatch matches;
+        std::smatch matches;
 
         uint32_t label;
         bool inverse;
 
-        if(std::regex_search(q->data.c_str(), matches, directLabel)) {
+        if(std::regex_search(q->data, matches, directLabel)) {
             label = (uint32_t) std::stoul(matches[1]);
             inverse = false;
-        } else if(std::regex_search(q->data.c_str(), matches, inverseLabel)) {
+        } else if(std::regex_search(q->data, matches, inverseLabel)) {
             label = (uint32_t) std::stoul(matches[1]);
             inverse = true;
         } else {

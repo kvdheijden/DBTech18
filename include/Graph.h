@@ -5,7 +5,7 @@
 #ifndef QS_GRAPH_H
 #define QS_GRAPH_H
 
-#include "stdafx.h"
+#include <unordered_map>
 
 class Graph {
 

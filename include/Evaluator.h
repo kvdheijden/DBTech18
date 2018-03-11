@@ -5,15 +5,14 @@
 #ifndef QS_EVALUATOR_H
 #define QS_EVALUATOR_H
 
-#include "stdafx.h"
 
-#include "cardStat.h"
-#include "RPQTree.h"
+#include <memory>
+#include "Graph.h"
+#include "Estimator.h"
 
 class Evaluator {
 
 public:
-
     virtual void prepare() = 0;
     virtual cardStat evaluate(RPQTree *query) = 0;
 

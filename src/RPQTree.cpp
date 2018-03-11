@@ -2,6 +2,7 @@
 // Created by Nikolay Yakovets on 2018-02-02.
 //
 
+#include <iostream>
 #include "RPQTree.h"
 
 RPQTree::~RPQTree() {
@@ -17,7 +18,7 @@ RPQTree* RPQTree::strToTree(std::string &str) {
 
     // case /
     // most right '/' (but not inside '()') search and split
-    for(int i = str.size()-1; i >= 0; --i){
+    for(int i=(int) str.size()-1;i>=0;--i){
         char c = str[i];
         if(c == ')'){
             ++level;
@@ -29,8 +30,8 @@ RPQTree* RPQTree::strToTree(std::string &str) {
         }
         if(level>0) continue;
         if(c == '/'){
-            std::string left(str.substr(0, static_cast<unsigned int>(i)));
-            std::string right(str.substr(static_cast<unsigned int>(i + 1)));
+            std::string left(str.substr(0,i));
+            std::string right(str.substr(i+1));
             std::string payload(1, c);
             return new RPQTree(payload, strToTree(left), strToTree(right));
         }
@@ -39,7 +40,7 @@ RPQTree* RPQTree::strToTree(std::string &str) {
     if(str[0]=='('){
         //case ()
         //pull out inside and to strToTree
-        for(uint32_t i=0;i<str.size();++i){
+        for(int i=0;i<str.size();++i){
             if(str[i]=='('){
                 ++level;
                 continue;
@@ -88,10 +89,4 @@ bool RPQTree::isUnary() {
 
 bool RPQTree::isLeaf() {
     return left == nullptr && right == nullptr;
-}
-
-std::string RPQTree::toString() const {
-    std::string leftData{ left == nullptr ? "" : left->toString() };
-    std::string rightData{ right == nullptr ? "" : right->toString() };
-    return leftData + data + rightData;
 }
