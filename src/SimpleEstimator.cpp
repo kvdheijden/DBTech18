@@ -35,6 +35,7 @@ SimpleEstimator::SimpleEstimator(std::shared_ptr<SimpleGraph> &g) :
 {
     // works only with SimpleGraph
     graph = g;
+
 #if ESTIMATE_METHOD == PATH_PROBABILITY
     pathProbabilities.init(2 * L, 0.0f);
 #endif
