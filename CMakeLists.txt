@@ -19,7 +19,9 @@ set(HEADER_FILES
         include/SimpleGraph.h
         include/SimpleEstimator.h
         include/SimpleEvaluator.h
-        include/cardStat.h )
+        include/cardStat.h
+        include/stdafx.h
+        )
 
 set(SOURCE_FILES
         src/main.cpp
@@ -30,4 +32,4 @@ set(SOURCE_FILES
         src/cardStat.cpp
         )
 
-add_executable(quicksilver ${SOURCE_FILES})
+add_executable(quicksilver ${HEADER_FILES} ${SOURCE_FILES})
