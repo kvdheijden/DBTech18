@@ -10,7 +10,7 @@
 #define BRUTE_FORCE         (0x03)
 
 #ifndef ESTIMATE_METHOD
-#define ESTIMATE_METHOD     SAMPLING
+#define ESTIMATE_METHOD     PATH_PROBABILITY
 #endif
 
 #if ESTIMATE_METHOD == PATH_PROBABILITY
@@ -40,7 +40,7 @@ private:
 
 #if ESTIMATE_METHOD == PATH_PROBABILITY
     // Number of dimensions in pathProb.
-    static const uint32_t D = 5;
+    static const uint32_t D = 3;
 
     // Path probability:
     std::vector<uint32_t> nodesWithOutLabel;
