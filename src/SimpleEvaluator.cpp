@@ -53,25 +53,25 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::project(uint32_t projectLabel, boo
     if(!inverse) {
         // going forward
         for(uint32_t source = 0; source < in->getNoVertices(); source++) {
-            for (const std::shared_ptr<SimpleEdge>& labelTarget : in->getVertex(source).outgoing()) {
+            for (const SimpleEdge *labelTarget : in->getVertex(source).outgoing()) {
 
                 auto label = labelTarget->label;
                 auto target = labelTarget->target;
 
                 if (label == projectLabel)
-                    out->addEdge(source, target->label, label);
+                    out->addEdge(source, target.label, label);
             }
         }
     } else {
         // going backward
         for(uint32_t source = 0; source < in->getNoVertices(); source++) {
-            for (const std::shared_ptr<SimpleEdge>& labelTarget : in->getVertex(source).incoming()) {
+            for (const SimpleEdge* labelTarget : in->getVertex(source).incoming()) {
 
                 auto label = labelTarget->label;
                 auto target = labelTarget->target;
 
                 if (label == projectLabel)
-                    out->addEdge(source, target->label, label);
+                    out->addEdge(source, target.label, label);
             }
         }
     }
@@ -86,13 +86,13 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::join(std::shared_ptr<SimpleGraph> 
     out->setNoLabels(1);
 
     for(uint32_t leftSource = 0; leftSource < left->getNoVertices(); leftSource++) {
-        for (const std::shared_ptr<SimpleEdge>& labelTarget : left->getVertex(leftSource).outgoing()) {
+        for (const SimpleEdge* labelTarget : left->getVertex(leftSource).outgoing()) {
 
-            uint32_t leftTarget = labelTarget->target->label;
+            uint32_t leftTarget = labelTarget->target.label;
             // try to join the left target with right source
-            for (const std::shared_ptr<SimpleEdge>& rightLabelTarget : right->getVertex(leftTarget).outgoing()) {
+            for (const SimpleEdge* rightLabelTarget : right->getVertex(leftTarget).outgoing()) {
 
-                uint32_t rightTarget = rightLabelTarget->target->label;
+                uint32_t rightTarget = rightLabelTarget->target.label;
                 out->addEdge(leftSource, rightTarget, 0);
 
             }

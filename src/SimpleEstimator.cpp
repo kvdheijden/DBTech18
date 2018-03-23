@@ -130,13 +130,13 @@ void SimpleEstimator::calculatePathProbabilities(dimArr<float, S>& labelProbabil
 template <>
 void SimpleEstimator::countPaths<1>(dimArr<uint32_t, 1>& path, uint32_t node) {
     // Go through all outgoing transitions from this node.
-    for ( const std::shared_ptr<SimpleEdge>& t : graph->getVertex(node).outgoing() ) {
+    for ( const SimpleEdge* t : graph->getVertex(node).outgoing() ) {
         uint32_t label = t->label;
         path[label]++;
     }
 
     // Go through all incoming transitions from this node.
-    for ( const std::shared_ptr<SimpleEdge>& t : graph->getVertex(node).incoming() ) {
+    for ( const SimpleEdge* t : graph->getVertex(node).incoming() ) {
         uint32_t label = t->label;
         path[L+label]++;
     }
@@ -145,16 +145,16 @@ void SimpleEstimator::countPaths<1>(dimArr<uint32_t, 1>& path, uint32_t node) {
 template<size_t S>
 void SimpleEstimator::countPaths(dimArr<uint32_t, S> &path, uint32_t node) {
     // Go through all outgoing transitions from this node.
-    for ( const std::shared_ptr<SimpleEdge>& t : graph->getVertex(node).outgoing() ) {
+    for ( const SimpleEdge* t : graph->getVertex(node).outgoing() ) {
         uint32_t label = t->label;
-        countPaths(path[label].first, t->target->label);
+        countPaths(path[label].first, t->target.label);
         path[label].second++;
     }
 
     // Go through all incoming transitions from this node.
-    for ( const std::shared_ptr<SimpleEdge>& t : graph->getVertex(node).incoming() ) {
+    for ( const SimpleEdge* t : graph->getVertex(node).incoming() ) {
         uint32_t label = t->label;
-        countPaths(path[L+label].first, t->target->label);
+        countPaths(path[L+label].first, t->target.label);
         path[L+label].second++;
     }
 }
@@ -183,7 +183,7 @@ void SimpleEstimator::prepareProbability() {
         }
 
         // Go through all transitions from this node.
-        for ( const std::shared_ptr<SimpleEdge>& t : n.outgoing() ) {
+        for ( const SimpleEdge* t : n.outgoing() ) {
             uint32_t label = t->label;
             if ( !seenLabelForNode[label] ) {
                 nodesWithOutLabel[label]++;
@@ -202,7 +202,7 @@ void SimpleEstimator::prepareProbability() {
         }
 
         // Go through all transitions to this node.
-        for ( const std::shared_ptr<SimpleEdge>& t : n.incoming() ) {
+        for ( const SimpleEdge* t : n.incoming() ) {
             uint32_t label = t->label;
             if ( !seenLabelForNode[label] ) {
                 nodesWithInLabel[label]++;

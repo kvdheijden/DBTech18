@@ -16,29 +16,29 @@ class SimpleVertex;
 
 class SimpleEdge {
 public:
-    SimpleEdge(uint32_t label, const std::shared_ptr<SimpleVertex>& subject, const std::shared_ptr<SimpleVertex>& object);
+    SimpleEdge(uint32_t label, const SimpleVertex& subject, const SimpleVertex& object);
 
     const uint32_t label;
 
-    const std::shared_ptr<SimpleVertex>& source;
-    const std::shared_ptr<SimpleVertex>& target;
+    const SimpleVertex& source;
+    const SimpleVertex& target;
 };
 
-typedef bool (*edge_sort_fcn)(const std::shared_ptr<SimpleEdge>& a, const std::shared_ptr<SimpleEdge>& b);
+typedef bool (*edge_sort_fcn)(const SimpleEdge* a, const SimpleEdge* b);
 
 class SimpleVertex {
 private:
-    std::set<std::shared_ptr<SimpleEdge>, edge_sort_fcn> adj;
-    std::set<std::shared_ptr<SimpleEdge>, edge_sort_fcn> r_adj;
+    std::set<const SimpleEdge *, edge_sort_fcn> adj;
+    std::set<const SimpleEdge *, edge_sort_fcn> r_adj;
 
 public:
     const uint32_t label;
 
-    const std::set<std::shared_ptr<SimpleEdge>, edge_sort_fcn>& outgoing() const;
-    const std::set<std::shared_ptr<SimpleEdge>, edge_sort_fcn>& incoming() const;
+    const std::set<const SimpleEdge *, edge_sort_fcn>& outgoing() const;
+    const std::set<const SimpleEdge *, edge_sort_fcn>& incoming() const;
 
-    void insert_outgoing(const std::shared_ptr<SimpleEdge>& e);
-    void insert_incoming(const std::shared_ptr<SimpleEdge>& e);
+    void insert_outgoing(const SimpleEdge& e);
+    void insert_incoming(const SimpleEdge& e);
 
     explicit SimpleVertex(uint32_t l);
     bool operator<(const SimpleVertex& other) const;
@@ -51,8 +51,8 @@ private:
     uint32_t n_L;
     uint32_t n_E;
 
-    std::vector<std::shared_ptr<SimpleVertex>> V;
-    std::vector<std::shared_ptr<SimpleEdge>> E;
+    std::deque<SimpleVertex> V;
+    std::deque<SimpleEdge> E;
 
 public:
 

@@ -5,11 +5,11 @@
 #include "SimpleGraph.h"
 
 /// SimpleEdge
-SimpleEdge::SimpleEdge(uint32_t label, const std::shared_ptr<SimpleVertex>& subject, const std::shared_ptr<SimpleVertex>& object)
+SimpleEdge::SimpleEdge(uint32_t label, const SimpleVertex& subject, const SimpleVertex& object)
         : label(label), source(subject), target(object) {}
 
 /// SimpleVertex
-static bool edgeSort(const std::shared_ptr<SimpleEdge>& a, const std::shared_ptr<SimpleEdge>& b) {
+static bool edgeSort(const SimpleEdge *a, const SimpleEdge *b) {
     if(a->target == b->target) {
         return a->label < b->label;
     }
@@ -26,20 +26,20 @@ bool SimpleVertex::operator==(const SimpleVertex &other) const {
     return label == other.label;
 }
 
-const std::set<std::shared_ptr<SimpleEdge>, edge_sort_fcn> &SimpleVertex::outgoing() const {
+const std::set<const SimpleEdge *, edge_sort_fcn> &SimpleVertex::outgoing() const {
     return adj;
 }
 
-const std::set<std::shared_ptr<SimpleEdge>, edge_sort_fcn> &SimpleVertex::incoming() const {
+const std::set<const SimpleEdge *, edge_sort_fcn> &SimpleVertex::incoming() const {
     return r_adj;
 }
 
-void SimpleVertex::insert_outgoing(const std::shared_ptr<SimpleEdge>& e) {
-    this->adj.insert(e);
+void SimpleVertex::insert_outgoing(const SimpleEdge& e) {
+    this->adj.insert(&e);
 }
 
-void SimpleVertex::insert_incoming(const std::shared_ptr<SimpleEdge>& e) {
-    this->r_adj.insert(e);
+void SimpleVertex::insert_incoming(const SimpleEdge& e) {
+    this->r_adj.insert(&e);
 }
 
 /// SimpleGraph
@@ -53,7 +53,7 @@ void SimpleGraph::setNoVertices(uint32_t v) {
     this->n_V = v;
     this->V.clear();
     for(uint32_t i = 0; i < v; i++) {
-        this->V.push_back(std::make_shared<SimpleVertex>(i));
+        this->V.emplace_back(i);
     }
 }
 
@@ -73,17 +73,17 @@ uint32_t SimpleGraph::getNoDistinctEdges() const {
 
     uint32_t sum = 0;
 
-    for (const std::shared_ptr<SimpleVertex>& sourceVec : V) {
+    for (const SimpleVertex& sourceVec : V) {
 
         // std::sort not needed since std::set is sorted by default.
 
-        std::shared_ptr<SimpleVertex> prevTarget = nullptr;
+        const SimpleVertex* prevTarget = nullptr;
         uint32_t prevLabel = 0;
 
-        for (const std::shared_ptr<SimpleEdge>& edge : sourceVec->outgoing()) {
-            if (!(prevTarget == edge->target && prevLabel == edge->label)) {
+        for (const SimpleEdge* edge : sourceVec.outgoing()) {
+            if (!(prevTarget == &edge->target && prevLabel == edge->label)) {
                 sum++;
-                prevTarget = edge->target;
+                prevTarget = &edge->target;
                 prevLabel = edge->label;
             }
         }
@@ -98,13 +98,14 @@ void SimpleGraph::addEdge(uint32_t from, uint32_t to, uint32_t edgeLabel) {
                                          "(" + std::to_string(from) + "," + std::to_string(to) + "," +
                                          std::to_string(edgeLabel) + ")");
 
-    std::shared_ptr<SimpleVertex>& subject = this->V[from];
-    std::shared_ptr<SimpleVertex>& object = this->V[to];
+    SimpleVertex& subject = this->V[from];
+    SimpleVertex& object = this->V[to];
 
-    this->E.push_back(std::make_shared<SimpleEdge>(edgeLabel, subject, object));
+    this->E.emplace_back(edgeLabel, subject, object);
+    const SimpleEdge& predicate = this->E.back();
 
-    subject->insert_outgoing(this->E.back());
-    object->insert_incoming(this->E.back());
+    subject.insert_outgoing(predicate);
+    object.insert_incoming(predicate);
 }
 
 void SimpleGraph::readFromContiguousFile(const std::string &fileName) {
@@ -151,5 +152,5 @@ void SimpleGraph::readFromContiguousFile(const std::string &fileName) {
 SimpleVertex &SimpleGraph::getVertex(uint32_t i) {
     if(i >= this->n_V)
         throw std::runtime_error(std::string("Vertex data out of bound: (") + std::to_string(i) + ")");
-    return *(this->V[i]);
+    return this->V[i];
 }
