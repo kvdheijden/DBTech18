@@ -130,14 +130,14 @@ void SimpleEstimator::calculatePathProbabilities(dimArr<float, S>& labelProbabil
 template <>
 void SimpleEstimator::countPaths<1>(dimArr<uint32_t, 1>& path, uint32_t node) {
     // Go through all outgoing transitions from this node.
-    for ( const std::pair<uint32_t,uint32_t> &t : graph->adj[node] ) {
-        uint32_t label = t.first;
+    for ( const std::shared_ptr<SimpleEdge>& t : graph->getVertex(node).outgoing() ) {
+        uint32_t label = t->label;
         path[label]++;
     }
 
     // Go through all incoming transitions from this node.
-    for ( const std::pair<uint32_t,uint32_t> &t : graph->reverse_adj[node] ) {
-        uint32_t label = t.first;
+    for ( const std::shared_ptr<SimpleEdge>& t : graph->getVertex(node).incoming() ) {
+        uint32_t label = t->label;
         path[L+label]++;
     }
 }
@@ -145,16 +145,16 @@ void SimpleEstimator::countPaths<1>(dimArr<uint32_t, 1>& path, uint32_t node) {
 template<size_t S>
 void SimpleEstimator::countPaths(dimArr<uint32_t, S> &path, uint32_t node) {
     // Go through all outgoing transitions from this node.
-    for ( const std::pair<uint32_t,uint32_t> &t : graph->adj[node] ) {
-        uint32_t label = t.first;
-        countPaths(path[label].first, t.second);
+    for ( const std::shared_ptr<SimpleEdge>& t : graph->getVertex(node).outgoing() ) {
+        uint32_t label = t->label;
+        countPaths(path[label].first, t->target->label);
         path[label].second++;
     }
 
     // Go through all incoming transitions from this node.
-    for ( const std::pair<uint32_t,uint32_t> &t : graph->reverse_adj[node] ) {
-        uint32_t label = t.first;
-        countPaths(path[L+label].first, t.second);
+    for ( const std::shared_ptr<SimpleEdge>& t : graph->getVertex(node).incoming() ) {
+        uint32_t label = t->label;
+        countPaths(path[L+label].first, t->target->label);
         path[L+label].second++;
     }
 }
@@ -174,16 +174,17 @@ void SimpleEstimator::prepareProbability() {
     std::vector<bool> seenLabelForNode(L, false);
 
     // Go through all nodes and count the transition labels and number of nodes with specific outgoing transitions.
-    for ( const std::vector<std::pair<uint32_t,uint32_t>> &n : graph->adj ) {
+    for ( uint32_t i = 0; i < graph->getNoVertices(); i++ ) {
+        SimpleVertex& n = graph->getVertex(i);
 
         // Reset flags for which labels have already been seen for this node.
-        for (auto &&i : seenLabelForNode) {
-            i = false;
+        for (auto &&b : seenLabelForNode) {
+            b = false;
         }
 
         // Go through all transitions from this node.
-        for ( const std::pair<uint32_t,uint32_t> &t : n ) {
-            uint32_t label = t.first;
+        for ( const std::shared_ptr<SimpleEdge>& t : n.outgoing() ) {
+            uint32_t label = t->label;
             if ( !seenLabelForNode[label] ) {
                 nodesWithOutLabel[label]++;
                 seenLabelForNode[label] = true;
@@ -192,16 +193,17 @@ void SimpleEstimator::prepareProbability() {
     }
 
     // Go through all nodes and count the number of nodes with specific incoming transitions.
-    for ( const std::vector<std::pair<uint32_t,uint32_t>> &n : graph->reverse_adj ) {
+    for ( uint32_t i = 0; i < graph->getNoVertices(); i++ ) {
+        SimpleVertex& n = graph->getVertex(i);
 
         // Reset flags for which labels have already been seen for this node.
-        for (auto &&i : seenLabelForNode) {
-            i = false;
+        for (auto &&b : seenLabelForNode) {
+            b = false;
         }
 
         // Go through all transitions to this node.
-        for ( const std::pair<uint32_t,uint32_t> &t : n ) {
-            uint32_t label = t.first;
+        for ( const std::shared_ptr<SimpleEdge>& t : n.incoming() ) {
+            uint32_t label = t->label;
             if ( !seenLabelForNode[label] ) {
                 nodesWithInLabel[label]++;
                 seenLabelForNode[label] = true;
@@ -293,7 +295,7 @@ void SimpleEstimator::convertQuery(RPQTree *q, std::vector<uint32_t> &query) {
 
     std::string rootLabel = q->data;
     if ( rootLabel != "/" ) {
-        unsigned int rootLabelInt = std::stoul(rootLabel);
+        unsigned int rootLabelInt = (unsigned int)std::stoul(rootLabel);
         if (rootLabel[rootLabel.size()-1] == '+') {
             query.push_back(rootLabelInt);
         } else {

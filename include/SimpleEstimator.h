@@ -13,6 +13,8 @@
 #define ESTIMATE_METHOD     PATH_PROBABILITY
 #endif
 
+#include <memory>
+
 #if ESTIMATE_METHOD == PATH_PROBABILITY
 #include <vector>
 #elif (ESTIMATE_METHOD == SAMPLING) || (ESTIMATE_METHOD == BRUTE_FORCE)
