@@ -24,25 +24,31 @@ public:
     const SimpleVertex& target;
 };
 
-typedef bool (*edge_sort_fcn)(const SimpleEdge* a, const SimpleEdge* b);
-
 class SimpleVertex {
+public:
+    typedef bool (*edgeComparator)(const SimpleEdge *, const SimpleEdge *);
 private:
-    std::set<const SimpleEdge *, edge_sort_fcn> adj;
-    std::set<const SimpleEdge *, edge_sort_fcn> r_adj;
+    std::multiset<const SimpleEdge *, edgeComparator> adj;
+    std::multiset<const SimpleEdge *, edgeComparator> r_adj;
 
 public:
     const uint32_t label;
 
-    const std::set<const SimpleEdge *, edge_sort_fcn>& outgoing() const;
-    const std::set<const SimpleEdge *, edge_sort_fcn>& incoming() const;
+    static bool compareEdge(const SimpleEdge * a, const SimpleEdge * b);
+
+    const std::multiset<const SimpleEdge *, edgeComparator>& outgoing() const;
+    const std::multiset<const SimpleEdge *, edgeComparator>& incoming() const;
 
     void insert_outgoing(const SimpleEdge& e);
     void insert_incoming(const SimpleEdge& e);
 
+    uint32_t inDegree() const;
+    uint32_t outDegree() const;
+
     explicit SimpleVertex(uint32_t l);
     bool operator<(const SimpleVertex& other) const;
     bool operator==(const SimpleVertex& other) const;
+    bool operator!=(const SimpleVertex& other) const;
 };
 
 class SimpleGraph : public Graph {

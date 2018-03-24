@@ -29,10 +29,9 @@ public:
     void attachEstimator(std::shared_ptr<SimpleEstimator> &e);
 
     std::shared_ptr<SimpleGraph> evaluate_aux(RPQTree *q);
-    static std::shared_ptr<SimpleGraph> project(uint32_t label, bool inverse, std::shared_ptr<SimpleGraph> &g);
-    static std::shared_ptr<SimpleGraph> join(std::shared_ptr<SimpleGraph> &left, std::shared_ptr<SimpleGraph> &right);
-
-    static cardStat computeStats(std::shared_ptr<SimpleGraph> &g);
+    std::shared_ptr<SimpleGraph> project(uint32_t label, bool inverse, std::shared_ptr<SimpleGraph> &g);
+    std::shared_ptr<SimpleGraph> join(std::shared_ptr<SimpleGraph> &left, std::shared_ptr<SimpleGraph> &right);
+    cardStat computeStats(std::shared_ptr<SimpleGraph> &g);
 
 };
 

@@ -5,13 +5,13 @@
 #include "SimpleEstimator.h"
 #include "SimpleEvaluator.h"
 
-#include <regex>
-
 SimpleEvaluator::SimpleEvaluator(std::shared_ptr<SimpleGraph> &g) {
 
     // works only with SimpleGraph
     graph = g;
-    est = nullptr; // estimator not attached by default
+
+    // estimator not attached by default
+    est = nullptr;
 }
 
 void SimpleEvaluator::attachEstimator(std::shared_ptr<SimpleEstimator> &e) {
@@ -24,7 +24,7 @@ void SimpleEvaluator::prepare() {
     if(est != nullptr) est->prepare();
 
     // prepare other things here.., if necessary
-
+    // TODO: caching
 }
 
 cardStat SimpleEvaluator::computeStats(std::shared_ptr<SimpleGraph> &g) {
@@ -32,13 +32,13 @@ cardStat SimpleEvaluator::computeStats(std::shared_ptr<SimpleGraph> &g) {
     cardStat stats {};
 
     for(uint32_t source = 0; source < g->getNoVertices(); source++) {
-        if(!g->getVertex(source).outgoing().empty()) stats.noOut++;
+        if(g->getVertex(source).outDegree() != 0) stats.noOut++;
     }
 
     stats.noPaths = g->getNoDistinctEdges();
 
     for(uint32_t target = 0; target < g->getNoVertices(); target++) {
-        if(!g->getVertex(target).incoming().empty()) stats.noIn++;
+        if(g->getVertex(target).inDegree() != 0) stats.noIn++;
     }
 
     return stats;
@@ -115,18 +115,7 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::evaluate_aux(RPQTree *q) {
         return join(left, right);
     }
 
-    if(q->isConcat()) {
-
-        // evaluate the children
-        auto leftGraph = SimpleEvaluator::evaluate_aux(q->left);
-        auto rightGraph = SimpleEvaluator::evaluate_aux(q->right);
-
-        // join left with right
-        return SimpleEvaluator::join(leftGraph, rightGraph);
-
-    }
-
-    return nullptr;
+    throw std::runtime_error("Invalid RPQTree for evaluation");
 }
 
 cardStat SimpleEvaluator::evaluate(RPQTree *query) {

@@ -9,14 +9,7 @@ SimpleEdge::SimpleEdge(uint32_t label, const SimpleVertex& subject, const Simple
         : label(label), source(subject), target(object) {}
 
 /// SimpleVertex
-static bool edgeSort(const SimpleEdge *a, const SimpleEdge *b) {
-    if(a->target == b->target) {
-        return a->label < b->label;
-    }
-    return a->target < b->target;
-}
-
-SimpleVertex::SimpleVertex(uint32_t l) : adj(edgeSort), r_adj(edgeSort), label(l) {}
+SimpleVertex::SimpleVertex(uint32_t l) : adj(SimpleVertex::compareEdge), r_adj(SimpleVertex::compareEdge), label(l) {}
 
 bool SimpleVertex::operator<(const SimpleVertex &other) const {
     return label < other.label;
@@ -26,20 +19,43 @@ bool SimpleVertex::operator==(const SimpleVertex &other) const {
     return label == other.label;
 }
 
-const std::set<const SimpleEdge *, edge_sort_fcn> &SimpleVertex::outgoing() const {
+bool SimpleVertex::operator!=(const SimpleVertex &other) const {
+    return label != other.label;
+}
+
+const std::multiset<const SimpleEdge *, SimpleVertex::edgeComparator> &SimpleVertex::outgoing() const {
     return adj;
 }
 
-const std::set<const SimpleEdge *, edge_sort_fcn> &SimpleVertex::incoming() const {
+const std::multiset<const SimpleEdge *, SimpleVertex::edgeComparator> &SimpleVertex::incoming() const {
     return r_adj;
 }
 
+bool SimpleVertex::compareEdge(const SimpleEdge * a, const SimpleEdge * b) {
+    if (a->target == b->target) {
+        return a->label < b->label;
+    }
+    return a->target < b->target;
+}
+
 void SimpleVertex::insert_outgoing(const SimpleEdge& e) {
+    if(e.source != *this)
+        throw std::runtime_error("Outgoing edge subject not equal to this.");
     this->adj.insert(&e);
 }
 
 void SimpleVertex::insert_incoming(const SimpleEdge& e) {
+    if(e.target != *this)
+        throw std::runtime_error("Incoming edge object not equal to this.");
     this->r_adj.insert(&e);
+}
+
+uint32_t SimpleVertex::inDegree() const {
+    return adj.size();
+}
+
+uint32_t SimpleVertex::outDegree() const {
+    return r_adj.size();
 }
 
 /// SimpleGraph
@@ -67,7 +83,11 @@ void SimpleGraph::setNoVertices(uint32_t v) {
 }
 
 uint32_t SimpleGraph::getNoEdges() const {
-    return this->E.size();
+    uint32_t sum = 0;
+    for(const SimpleVertex& v : V) {
+        sum += v.outDegree();
+    }
+    return sum;
 }
 
 uint32_t SimpleGraph::getNoLabels() const {
@@ -75,12 +95,11 @@ uint32_t SimpleGraph::getNoLabels() const {
 }
 
 uint32_t SimpleGraph::getNoDistinctEdges() const {
-
     uint32_t sum = 0;
 
     for (const SimpleVertex& sourceVec : V) {
 
-        // std::sort not needed since std::set is sorted by default.
+        // Sets are sorted by default
 
         const SimpleVertex* prevTarget = nullptr;
         uint32_t prevLabel = 0;
@@ -150,9 +169,9 @@ void SimpleGraph::readFromContiguousFile(const std::string &fileName) {
 
     graphFile.close();
 
-    if(this->E.size() != n_E)
+    if(this->getNoEdges() != n_E)
         throw std::runtime_error("Invalid number of edges!");
-    if(this->V.size() != n_V)
+    if(this->getNoVertices() != n_V)
         throw std::runtime_error("Invalid number of vertices");
 }
 
