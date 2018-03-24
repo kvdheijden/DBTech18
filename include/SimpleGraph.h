@@ -25,19 +25,15 @@ public:
 };
 
 class SimpleVertex {
-public:
-    typedef bool (*edgeComparator)(const SimpleEdge *, const SimpleEdge *);
 private:
-    std::multiset<const SimpleEdge *, edgeComparator> adj;
-    std::multiset<const SimpleEdge *, edgeComparator> r_adj;
+    std::vector<const SimpleEdge *> adj;
+    std::vector<const SimpleEdge *> r_adj;
 
 public:
     const uint32_t label;
 
-    static bool compareEdge(const SimpleEdge * a, const SimpleEdge * b);
-
-    const std::multiset<const SimpleEdge *, edgeComparator>& outgoing() const;
-    const std::multiset<const SimpleEdge *, edgeComparator>& incoming() const;
+    const std::vector<const SimpleEdge *>& outgoing() const;
+    const std::vector<const SimpleEdge *>& incoming() const;
 
     void insert_outgoing(const SimpleEdge& e);
     void insert_incoming(const SimpleEdge& e);

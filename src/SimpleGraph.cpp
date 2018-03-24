@@ -9,7 +9,7 @@ SimpleEdge::SimpleEdge(uint32_t label, const SimpleVertex& subject, const Simple
         : label(label), source(subject), target(object) {}
 
 /// SimpleVertex
-SimpleVertex::SimpleVertex(uint32_t l) : adj(SimpleVertex::compareEdge), r_adj(SimpleVertex::compareEdge), label(l) {}
+SimpleVertex::SimpleVertex(uint32_t l) : adj(), r_adj(), label(l) {}
 
 bool SimpleVertex::operator<(const SimpleVertex &other) const {
     return label < other.label;
@@ -23,31 +23,24 @@ bool SimpleVertex::operator!=(const SimpleVertex &other) const {
     return label != other.label;
 }
 
-const std::multiset<const SimpleEdge *, SimpleVertex::edgeComparator> &SimpleVertex::outgoing() const {
+const std::vector<const SimpleEdge *> &SimpleVertex::outgoing() const {
     return adj;
 }
 
-const std::multiset<const SimpleEdge *, SimpleVertex::edgeComparator> &SimpleVertex::incoming() const {
+const std::vector<const SimpleEdge *> &SimpleVertex::incoming() const {
     return r_adj;
-}
-
-bool SimpleVertex::compareEdge(const SimpleEdge * a, const SimpleEdge * b) {
-    if (a->target == b->target) {
-        return a->label < b->label;
-    }
-    return a->target < b->target;
 }
 
 void SimpleVertex::insert_outgoing(const SimpleEdge& e) {
     if(e.source != *this)
         throw std::runtime_error("Outgoing edge subject not equal to this.");
-    this->adj.insert(&e);
+    this->adj.push_back(&e);
 }
 
 void SimpleVertex::insert_incoming(const SimpleEdge& e) {
     if(e.target != *this)
         throw std::runtime_error("Incoming edge object not equal to this.");
-    this->r_adj.insert(&e);
+    this->r_adj.push_back(&e);
 }
 
 uint32_t SimpleVertex::inDegree() const {
@@ -99,12 +92,18 @@ uint32_t SimpleGraph::getNoDistinctEdges() const {
 
     for (const SimpleVertex& sourceVec : V) {
 
-        // Sets are sorted by default
+        auto e = const_cast<std::vector<const SimpleEdge *> &>(sourceVec.outgoing());
+        std::sort(e.begin(), e.end(), [](const SimpleEdge * a, const SimpleEdge * b) {
+            if (a->target == b->target) {
+                return a->label < b->label;
+            }
+            return a->target < b->target;
+        });
 
         const SimpleVertex* prevTarget = nullptr;
         uint32_t prevLabel = 0;
 
-        for (const SimpleEdge* edge : sourceVec.outgoing()) {
+        for (const SimpleEdge* edge : e) {
             if (!(prevTarget == &edge->target && prevLabel == edge->label)) {
                 sum++;
                 prevTarget = &edge->target;
