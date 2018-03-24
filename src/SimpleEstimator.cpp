@@ -154,7 +154,7 @@ void SimpleEstimator::countPaths(dimArr<uint32_t, S> &path, uint32_t node) {
     // Go through all incoming transitions from this node.
     for ( const SimpleEdge* t : graph->getVertex(node).incoming() ) {
         uint32_t label = t->label;
-        countPaths(path[L+label].first, t->target.label);
+        countPaths(path[L+label].first, t->source.label);
         path[L+label].second++;
     }
 }

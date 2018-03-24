@@ -47,9 +47,7 @@ public:
 
 class SimpleGraph : public Graph {
 private:
-    uint32_t n_V;
-    uint32_t n_L;
-    uint32_t n_E;
+    uint32_t L;
 
     std::deque<SimpleVertex> V;
     std::deque<SimpleEdge> E;
@@ -57,6 +55,12 @@ private:
 public:
 
     SimpleGraph();
+
+    explicit SimpleGraph(uint32_t n_L);
+
+    SimpleGraph(uint32_t n_V, uint32_t n_L);
+
+    explicit SimpleGraph(const std::string& fileName);
 
     uint32_t getNoVertices() const override;
 
@@ -67,8 +71,6 @@ public:
     uint32_t getNoDistinctEdges() const override;
 
     uint32_t getNoLabels() const override;
-
-    void setNoLabels(uint32_t l);
 
     void addEdge(uint32_t from, uint32_t to, uint32_t edgeLabel) override;
 

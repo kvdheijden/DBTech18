@@ -43,14 +43,23 @@ void SimpleVertex::insert_incoming(const SimpleEdge& e) {
 }
 
 /// SimpleGraph
-SimpleGraph::SimpleGraph() : n_V(0), n_L(0), n_E(0) {};
+SimpleGraph::SimpleGraph(const std::string& file) {
+    this->readFromContiguousFile(file);
+}
+
+SimpleGraph::SimpleGraph(uint32_t n_V, uint32_t n_L) {
+    setNoVertices(n_V);
+    this->L = n_L;
+}
+
+SimpleGraph::SimpleGraph(uint32_t n_L) : SimpleGraph(0, n_L) {}
+SimpleGraph::SimpleGraph() : SimpleGraph(0) {}
 
 uint32_t SimpleGraph::getNoVertices() const {
-    return n_V;
+    return this->V.size();
 }
 
 void SimpleGraph::setNoVertices(uint32_t v) {
-    this->n_V = v;
     this->V.clear();
     for(uint32_t i = 0; i < v; i++) {
         this->V.emplace_back(i);
@@ -58,15 +67,11 @@ void SimpleGraph::setNoVertices(uint32_t v) {
 }
 
 uint32_t SimpleGraph::getNoEdges() const {
-    return n_E;
+    return this->E.size();
 }
 
 uint32_t SimpleGraph::getNoLabels() const {
-    return n_L;
-}
-
-void SimpleGraph::setNoLabels(uint32_t l) {
-    this->n_L = l;
+    return L;
 }
 
 uint32_t SimpleGraph::getNoDistinctEdges() const {
@@ -93,7 +98,7 @@ uint32_t SimpleGraph::getNoDistinctEdges() const {
 }
 
 void SimpleGraph::addEdge(uint32_t from, uint32_t to, uint32_t edgeLabel) {
-    if(from >= n_V || to >= n_V || edgeLabel >= n_L)
+    if(from >= getNoVertices() || to >= getNoVertices() || edgeLabel >= getNoLabels())
         throw std::runtime_error(std::string("Edge data out of bounds: ") +
                                          "(" + std::to_string(from) + "," + std::to_string(to) + "," +
                                          std::to_string(edgeLabel) + ")");
@@ -119,11 +124,13 @@ void SimpleGraph::readFromContiguousFile(const std::string &fileName) {
     // parse the header (1st line)
     std::getline(graphFile, line);
     std::smatch matches;
+    uint32_t n_E, n_V;
     if(std::regex_search(line, matches, headerPat)) {
-        this->setNoVertices((uint32_t) std::stoul(matches[1]));
-        this->n_E = (uint32_t) std::stoul(matches[2]);
-        this->setNoLabels((uint32_t) std::stoul(matches[3]));
+        n_V = (uint32_t) std::stoul(matches[1]);
+        n_E = (uint32_t) std::stoul(matches[2]);
+        this->L = ((uint32_t) std::stoul(matches[3]));
 
+        this->setNoVertices(n_V);
         this->E.clear();
     } else {
         throw std::runtime_error(std::string("Invalid graph header!"));
@@ -143,14 +150,14 @@ void SimpleGraph::readFromContiguousFile(const std::string &fileName) {
 
     graphFile.close();
 
-    if(this->E.size() != this->n_E)
+    if(this->E.size() != n_E)
         throw std::runtime_error("Invalid number of edges!");
-    if(this->V.size() != this->n_V)
+    if(this->V.size() != n_V)
         throw std::runtime_error("Invalid number of vertices");
 }
 
 SimpleVertex &SimpleGraph::getVertex(uint32_t i) {
-    if(i >= this->n_V)
+    if(i >= getNoVertices())
         throw std::runtime_error(std::string("Vertex data out of bound: (") + std::to_string(i) + ")");
     return this->V[i];
 }
