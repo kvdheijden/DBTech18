@@ -64,6 +64,29 @@ cardStat SimpleEstimator::estimate(RPQTree *q) {
 #endif
 }
 
+// Used in the evaluator, so needs to be outside preprocessor blocks.
+void SimpleEstimator::convertQuery(RPQTree *q, std::vector<uint32_t> &query) {
+    // First go to left leaf. If there is any useful data, append it to the query. Then go to right leaf.
+
+    if (q == nullptr) {
+        return;
+    }
+
+    convertQuery(q->left, query);
+
+    std::string rootLabel = q->data;
+    if ( rootLabel != "/" ) {
+        unsigned int rootLabelInt = (unsigned int)std::stoul(rootLabel);
+        if (rootLabel[rootLabel.size()-1] == '+') {
+            query.push_back(rootLabelInt);
+        } else {
+            query.push_back(rootLabelInt + L);
+        }
+    }
+
+    convertQuery(q->right, query);
+}
+
 #if ESTIMATE_METHOD == PATH_PROBABILITY
 ////////////////////////
 /// PATH PROBABILITY ///
@@ -281,28 +304,6 @@ cardStat SimpleEstimator::estimateProbability(RPQTree *q) {
         return cardStat {startNodes, paths, endNodes};
     }
     return cardStat {0, paths, 0};
-}
-
-void SimpleEstimator::convertQuery(RPQTree *q, std::vector<uint32_t> &query) {
-    // First go to left leaf. If there is any useful data, append it to the query. Then go to right leaf.
-
-    if (q == nullptr) {
-        return;
-    }
-
-    convertQuery(q->left, query);
-
-    std::string rootLabel = q->data;
-    if ( rootLabel != "/" ) {
-        unsigned int rootLabelInt = (unsigned int)std::stoul(rootLabel);
-        if (rootLabel[rootLabel.size()-1] == '+') {
-            query.push_back(rootLabelInt);
-        } else {
-            query.push_back(rootLabelInt + L);
-        }
-    }
-
-    convertQuery(q->right, query);
 }
 
 #elif ESTIMATE_METHOD == SAMPLING

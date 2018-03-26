@@ -118,7 +118,88 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::evaluate_aux(RPQTree *q) {
     throw std::runtime_error("Invalid RPQTree for evaluation");
 }
 
+/* // Could be useful later on...
+uint32_t SimpleEvaluator::convertLabelToInt(std::string label) {
+    unsigned int rootLabelInt = (unsigned int)std::stoul(label);
+    if (label[label.size()-1] == '+') {
+        return rootLabelInt;
+    } else {
+        return rootLabelInt + est->L;
+    }
+}
+ */
+
+std::string SimpleEvaluator::convertIntToLabel(uint32_t i) {
+    if (i < est->L) {
+        std::string str = std::to_string(i) + "+";
+        return str;
+    } else {
+        std::string str = std::to_string(i-est->L) + "-";
+        return str;
+    }
+}
+
+// Construct an AST where the total plan is estimated to be most optimal.
+RPQTree* SimpleEvaluator::convertEfficientAST(RPQTree *q) {
+    // First convert the RPQTree to a vector to make life a lot easier.
+    std::vector<uint32_t> query;
+    est->convertQuery(q, query);
+
+    uint32_t totalCost = 0;
+    // Generate the most efficient AST using a recursive algorithm.
+    return generateEfficientAST(query, totalCost);
+}
+
+RPQTree* SimpleEvaluator::generateEfficientAST(std::vector<uint32_t> &query, uint32_t &totalCost) {
+    // If the query has size one, add no cost and return a leaf with this transition.
+    // (Could also add the number of transitions to the cost, but since this is a constant effort that is always the same, regardless of the plan, we might as well not do it.
+    if (query.size() == 1) {
+        std::string data = convertIntToLabel(query[0]);
+        return new RPQTree(data, nullptr, nullptr);
+    }
+
+    // Try out all different possible plans using estimation.
+    // Do a join at every possible index, recursively generate most efficient plans for each side.
+    uint32_t bestCost = INT32_MAX;
+    RPQTree* bestPlan;
+
+    for (int i = 1; i < query.size(); ++i) {
+        uint32_t cost = 0;
+
+        // In a join, estimate the cost of the join by multiplying the estimate number of paths of the two subqueries.
+        // Add to this the lowest cost of the subqueries to get the total cost of this plan.
+        std::vector<uint32_t> subQuery1(query.begin(), query.begin() + i);
+        std::vector<uint32_t> subQuery2(query.begin() + i, query.begin() + query.size());
+
+        // Get the best plans for the subqueries and add their costs to cost.
+        RPQTree *subQueryTree1 = generateEfficientAST(subQuery1, cost);
+        RPQTree *subQueryTree2 = generateEfficientAST(subQuery2, cost);
+
+        // Get estimated cost of join.
+        cost += est->estimate(subQueryTree1).noPaths * est->estimate(subQueryTree2).noPaths;
+
+        // Keep track of the plan with the lowest score so far.
+        if (cost <= bestCost) {
+            bestCost = cost;
+            std::string slash = "/";
+            bestPlan = new RPQTree(slash, subQueryTree1, subQueryTree2);
+        }
+    }
+
+    totalCost += bestCost;
+    return bestPlan;
+    //return new RPQTree(bestPlan.data, bestPlan.left, bestPlan.right);
+}
+
 cardStat SimpleEvaluator::evaluate(RPQTree *query) {
-    std::shared_ptr<SimpleGraph> res = evaluate_aux(query);
+
+    // Re-order the AST to a more efficient plan.
+    RPQTree *queryEff = convertEfficientAST(query);
+    //RPQTree *queryEff = query;
+
+    std::cout << std::endl << "Converted parsed query tree: ";
+    queryEff->print();
+
+    std::shared_ptr<SimpleGraph> res = evaluate_aux(queryEff);
     return computeStats(res);
 }

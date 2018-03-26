@@ -33,6 +33,12 @@ public:
     std::shared_ptr<SimpleGraph> join(std::shared_ptr<SimpleGraph> &left, std::shared_ptr<SimpleGraph> &right);
     cardStat computeStats(std::shared_ptr<SimpleGraph> &g);
 
+    RPQTree* convertEfficientAST(RPQTree *q);
+    RPQTree *generateEfficientAST(std::vector<uint32_t> &query, uint32_t &totalCost);
+
+    uint32_t convertLabelToInt(std::string label);
+
+    std::string convertIntToLabel(uint32_t i);
 };
 
 
