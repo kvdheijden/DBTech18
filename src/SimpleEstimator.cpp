@@ -104,9 +104,8 @@ float SimpleEstimator::calcProb(std::vector<uint32_t> query, const dimArr<float,
     float prob = calcProbRecursive(query, probabilities);
 
     while (query.size() > D) {
-        uint32_t first = query[0];
         query.erase(query.begin());
-        prob *= (calcProbRecursive(query, probabilities) / calcProbRecursive(query, probabilities[first].first));
+        prob *= (calcProbRecursive(query, probabilities) / calcProbRecursive(std::vector<uint32_t>(query.begin(), query.begin() + D-1), probabilities));
     }
 
     return prob;
