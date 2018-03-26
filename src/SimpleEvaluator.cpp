@@ -188,17 +188,16 @@ RPQTree* SimpleEvaluator::generateEfficientAST(std::vector<uint32_t> &query, uin
 
     totalCost += bestCost;
     return bestPlan;
-    //return new RPQTree(bestPlan.data, bestPlan.left, bestPlan.right);
 }
 
 cardStat SimpleEvaluator::evaluate(RPQTree *query) {
 
     // Re-order the AST to a more efficient plan.
-    RPQTree *queryEff = convertEfficientAST(query);
-    //RPQTree *queryEff = query;
+    //RPQTree *queryEff = convertEfficientAST(query);
+    RPQTree *queryEff = query;
 
-    std::cout << std::endl << "Converted parsed query tree: ";
-    queryEff->print();
+    //std::cout << std::endl << "Converted parsed query tree: ";
+    //queryEff->print();
 
     std::shared_ptr<SimpleGraph> res = evaluate_aux(queryEff);
     return computeStats(res);
