@@ -145,12 +145,15 @@ RPQTree* SimpleEvaluator::convertEfficientAST(RPQTree *q) {
     std::vector<uint32_t> query;
     est->convertQuery(q, query);
 
+    // Initialise unordered (hash)map.
+    std::unordered_map<std::string, uint32_t> estimationCache;
+
     uint32_t totalCost = 0;
     // Generate the most efficient AST using a recursive algorithm.
-    return generateEfficientAST(query, totalCost);
+    return generateEfficientAST(query, totalCost, estimationCache);
 }
 
-RPQTree* SimpleEvaluator::generateEfficientAST(std::vector<uint32_t> &query, uint32_t &totalCost) {
+RPQTree* SimpleEvaluator::generateEfficientAST(std::vector<uint32_t> &query, uint32_t &totalCost, std::unordered_map<std::string, uint32_t> &ec) {
     // If the query has size one, add no cost and return a leaf with this transition.
     // (Could also add the number of transitions to the cost, but since this is a constant effort that is always the same, regardless of the plan, we might as well not do it.
     if (query.size() == 1) {
@@ -172,13 +175,27 @@ RPQTree* SimpleEvaluator::generateEfficientAST(std::vector<uint32_t> &query, uin
         std::vector<uint32_t> subQuery2(query.begin() + i, query.begin() + query.size());
 
         // Get the best plans for the subqueries and add their costs to cost.
-        RPQTree *subQueryTree1 = generateEfficientAST(subQuery1, cost);
+        RPQTree *subQueryTree1 = generateEfficientAST(subQuery1, cost, ec);
         if (cost >= bestCost) { continue; } // If cost is already higher, no need to explore further.
-        RPQTree *subQueryTree2 = generateEfficientAST(subQuery2, cost);
+        RPQTree *subQueryTree2 = generateEfficientAST(subQuery2, cost, ec);
         if (cost >= bestCost) { continue; } // If cost is already higher, no need to explore further.
 
+        int estimate1;
+        int estimate2;
         // Get estimated cost of join.
-        cost += est->estimate(subQueryTree1).noPaths * est->estimate(subQueryTree2).noPaths;
+        if (ec.find(vecToString(subQuery1)) != ec.end()) { // Check if in cache.
+            estimate1 = ec[vecToString(subQuery1)];
+        } else {
+            estimate1 = est->estimate(subQueryTree1).noPaths;
+            ec[vecToString(subQuery1)] = estimate1;
+        }
+        if (ec.find(vecToString(subQuery2)) != ec.end()) { // Check if in cache.
+            estimate2 = ec[vecToString(subQuery2)];
+        } else {
+            estimate2 = est->estimate(subQueryTree2).noPaths;
+            ec[vecToString(subQuery2)] = estimate2;
+        }
+        cost += estimate1 * estimate2;
 
         // Keep track of the plan with the lowest score so far.
         if (cost <= bestCost) {
@@ -190,6 +207,22 @@ RPQTree* SimpleEvaluator::generateEfficientAST(std::vector<uint32_t> &query, uin
 
     totalCost += bestCost;
     return bestPlan;
+}
+
+std::string SimpleEvaluator::vecToString(std::vector<uint32_t> vec) {
+    std::ostringstream oss;
+
+    if (!vec.empty())
+    {
+        // Convert all but the last element to avoid a trailing ","
+        std::copy(vec.begin(), vec.end()-1,
+                  std::ostream_iterator<int>(oss, ","));
+
+        // Now add the last element with no delimiter
+        oss << vec.back();
+    }
+
+    return oss.str();
 }
 
 cardStat SimpleEvaluator::evaluate(RPQTree *query) {

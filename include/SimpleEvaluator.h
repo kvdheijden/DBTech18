@@ -34,11 +34,11 @@ public:
     cardStat computeStats(std::shared_ptr<SimpleGraph> &g);
 
     RPQTree* convertEfficientAST(RPQTree *q);
-    RPQTree *generateEfficientAST(std::vector<uint32_t> &query, uint32_t &totalCost);
+    RPQTree* generateEfficientAST(std::vector<uint32_t> &query, uint32_t &totalCost, std::unordered_map<std::string, uint32_t> &ec);
 
     uint32_t convertLabelToInt(std::string label);
-
     std::string convertIntToLabel(uint32_t i);
+    std::string vecToString(std::vector<uint32_t> vec);
 };
 
 
