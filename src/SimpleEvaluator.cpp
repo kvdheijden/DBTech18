@@ -2,6 +2,8 @@
 // Created by Nikolay Yakovets on 2018-02-02.
 //
 
+#include <chrono>
+//#include <unistd.h>
 #include "SimpleEstimator.h"
 #include "SimpleEvaluator.h"
 
@@ -184,15 +186,17 @@ RPQTree* SimpleEvaluator::generateEfficientAST(std::vector<uint32_t> &query, uin
         int estimate2;
         // Get estimated cost of join.
         if (ec.find(vecToString(subQuery1)) != ec.end()) { // Check if in cache.
-            estimate1 = ec[vecToString(subQuery1)];
-        } else {
+                estimate1 = ec[vecToString(subQuery1)];
+            } else {
             estimate1 = est->estimate(subQueryTree1).noPaths;
+            //usleep(1000); // Artificial estimation time increase to check caching effect.
             ec[vecToString(subQuery1)] = estimate1;
         }
         if (ec.find(vecToString(subQuery2)) != ec.end()) { // Check if in cache.
             estimate2 = ec[vecToString(subQuery2)];
         } else {
             estimate2 = est->estimate(subQueryTree2).noPaths;
+            //usleep(1000); // Artificial estimation time increase to check caching effect.
             ec[vecToString(subQuery2)] = estimate2;
         }
         cost += estimate1 * estimate2;
@@ -228,7 +232,11 @@ std::string SimpleEvaluator::vecToString(std::vector<uint32_t> vec) {
 cardStat SimpleEvaluator::evaluate(RPQTree *query) {
 
     // Re-order the AST to a more efficient plan.
-    //RPQTree *queryEff = convertEfficientAST(query);
+//    auto start = std::chrono::steady_clock::now();
+//    RPQTree *queryEff = convertEfficientAST(query);
+//    auto end = std::chrono::steady_clock::now();
+//    std::cout << "Time to plan: " << std::chrono::duration<double, std::milli>(end - start).count() << " ms" << std::endl;
+
     RPQTree *queryEff = query;
 
     //std::cout << std::endl << "Converted parsed query tree: ";
