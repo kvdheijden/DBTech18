@@ -55,7 +55,7 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::project(uint32_t projectLabel, boo
         for(uint32_t source = 0; source < in->getNoVertices(); source++) {
             for (const SimpleEdge *labelTarget : in->getVertex(source).outgoing()) {
                 if (labelTarget->label == projectLabel)
-                    out->addEdge(source, labelTarget->target.label, labelTarget->label);
+                    out->addEdge(source, labelTarget->target.label, projectLabel);
             }
         }
 
@@ -65,7 +65,7 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::project(uint32_t projectLabel, boo
         for(uint32_t source = 0; source < in->getNoVertices(); source++) {
             for (const SimpleEdge* labelTarget : in->getVertex(source).incoming()) {
                 if (labelTarget->label == projectLabel)
-                    out->addEdge(source, labelTarget->source.label, labelTarget->label);
+                    out->addEdge(source, labelTarget->source.label, projectLabel);
             }
         }
 
