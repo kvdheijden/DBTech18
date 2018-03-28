@@ -49,16 +49,13 @@ cardStat SimpleEvaluator::computeStats(std::shared_ptr<SimpleGraph> &g) {
 std::shared_ptr<SimpleGraph> SimpleEvaluator::project(uint32_t projectLabel, bool inverse, std::shared_ptr<SimpleGraph> &in) {
 
     auto out = std::make_shared<SimpleGraph>(in->getNoVertices(), in->getNoLabels());
-    uint32_t label;
 
     if(!inverse) {
         // going forward
         for(uint32_t source = 0; source < in->getNoVertices(); source++) {
             for (const SimpleEdge *labelTarget : in->getVertex(source).outgoing()) {
-                label = labelTarget->label;
-
-                if (label == projectLabel)
-                    out->addEdge(source, labelTarget->target.label, label);
+                if (labelTarget->label == projectLabel)
+                    out->addEdge(source, labelTarget->target.label, labelTarget->label);
             }
         }
 
@@ -67,10 +64,8 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::project(uint32_t projectLabel, boo
         // going backward
         for(uint32_t source = 0; source < in->getNoVertices(); source++) {
             for (const SimpleEdge* labelTarget : in->getVertex(source).incoming()) {
-                label = labelTarget->label;
-
-                if (label == projectLabel)
-                    out->addEdge(source, labelTarget->source.label, label);
+                if (labelTarget->label == projectLabel)
+                    out->addEdge(source, labelTarget->source.label, labelTarget->label);
             }
         }
 

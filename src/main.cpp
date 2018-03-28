@@ -139,6 +139,8 @@ int evaluatorBench(std::string &graphFile, std::string &queriesFile) {
 
     std::cout << "\n(2) Running the query workload..." << std::endl;
 
+    auto total_start = std::chrono::steady_clock::now();
+
     for(auto query : parseQueries(queriesFile)) {
 
         // perform estimation
@@ -162,6 +164,10 @@ int evaluatorBench(std::string &graphFile, std::string &queriesFile) {
         delete(queryTree);
 
     }
+    auto total_end = std::chrono::steady_clock::now();
+
+    std::cout << "Time of all queries: " << std::chrono::duration<double, std::milli>(total_end - total_start).count() << " ms" << std::endl;
+
 
     return 0;
 }
