@@ -49,34 +49,33 @@ cardStat SimpleEvaluator::computeStats(std::shared_ptr<SimpleGraph> &g) {
 std::shared_ptr<SimpleGraph> SimpleEvaluator::project(uint32_t projectLabel, bool inverse, std::shared_ptr<SimpleGraph> &in) {
 
     auto out = std::make_shared<SimpleGraph>(in->getNoVertices(), in->getNoLabels());
+    uint32_t label;
 
     if(!inverse) {
         // going forward
         for(uint32_t source = 0; source < in->getNoVertices(); source++) {
             for (const SimpleEdge *labelTarget : in->getVertex(source).outgoing()) {
-
-                auto label = labelTarget->label;
-                auto target = labelTarget->target.label;
+                label = labelTarget->label;
 
                 if (label == projectLabel)
-                    out->addEdge(source, target, label);
+                    out->addEdge(source, labelTarget->target.label, label);
             }
         }
+
+        return out;
     } else {
         // going backward
         for(uint32_t source = 0; source < in->getNoVertices(); source++) {
             for (const SimpleEdge* labelTarget : in->getVertex(source).incoming()) {
-
-                auto label = labelTarget->label;
-                auto target = labelTarget->source.label;
+                label = labelTarget->label;
 
                 if (label == projectLabel)
-                    out->addEdge(source, target, label);
+                    out->addEdge(source, labelTarget->source.label, label);
             }
         }
-    }
 
-    return out;
+        return out;
+    }
 }
 
 std::shared_ptr<SimpleGraph> SimpleEvaluator::join(std::shared_ptr<SimpleGraph> &left, std::shared_ptr<SimpleGraph> &right) {
@@ -85,13 +84,9 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::join(std::shared_ptr<SimpleGraph> 
 
     for(uint32_t leftSource = 0; leftSource < left->getNoVertices(); leftSource++) {
         for (const SimpleEdge* labelTarget : left->getVertex(leftSource).outgoing()) {
-
-            uint32_t leftTarget = labelTarget->target.label;
             // try to join the left target with right source
-            for (const SimpleEdge* rightLabelTarget : right->getVertex(leftTarget).outgoing()) {
-
-                uint32_t rightTarget = rightLabelTarget->target.label;
-                out->addEdge(leftSource, rightTarget, 0);
+            for (const SimpleEdge* rightLabelTarget : right->getVertex(labelTarget->target.label).outgoing()) {
+                out->addEdge(leftSource, rightLabelTarget->target.label, 0);
             }
         }
     }
@@ -237,11 +232,11 @@ cardStat SimpleEvaluator::evaluate(RPQTree *query) {
 //    auto end = std::chrono::steady_clock::now();
 //    std::cout << "Time to plan: " << std::chrono::duration<double, std::milli>(end - start).count() << " ms" << std::endl;
 
-    RPQTree *queryEff = query;
+    //RPQTree *queryEff = query;
 
     //std::cout << std::endl << "Converted parsed query tree: ";
     //queryEff->print();
 
-    std::shared_ptr<SimpleGraph> res = evaluate_aux(queryEff);
+    std::shared_ptr<SimpleGraph> res = evaluate_aux(query);
     return computeStats(res);
 }
