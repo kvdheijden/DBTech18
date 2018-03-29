@@ -3,6 +3,7 @@
 //
 
 #include <chrono>
+#include <iostream>
 //#include <unistd.h>
 #include "SimpleEstimator.h"
 #include "SimpleEvaluator.h"
@@ -27,6 +28,15 @@ void SimpleEvaluator::prepare() {
 
     // prepare other things here.., if necessary
     // TODO: caching
+
+    //Indexing:
+    for(uint32_t vertex = 0; vertex < this->graph->getNoVertices(); vertex++)
+    {
+        for (const SimpleEdge* edge : this->graph->getVertex(vertex).outgoing())
+        {
+            edge_index[edge->label].push_back(edge);
+        }
+    }
 }
 
 cardStat SimpleEvaluator::computeStats(std::shared_ptr<SimpleGraph> &g) {
@@ -52,21 +62,17 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::project(uint32_t projectLabel, boo
 
     if(!inverse) {
         // going forward
-        for(uint32_t source = 0; source < in->getNoVertices(); source++) {
-            for (const SimpleEdge *labelTarget : in->getVertex(source).outgoing()) {
-                if (labelTarget->label == projectLabel)
-                    out->addEdge(source, labelTarget->target.label, projectLabel);
-            }
+        for (const SimpleEdge* edge : edge_index[projectLabel])
+        {
+            out->addEdge(edge->source.label, edge->target.label, projectLabel);
         }
 
         return out;
     } else {
         // going backward
-        for(uint32_t source = 0; source < in->getNoVertices(); source++) {
-            for (const SimpleEdge* labelTarget : in->getVertex(source).incoming()) {
-                if (labelTarget->label == projectLabel)
-                    out->addEdge(source, labelTarget->source.label, projectLabel);
-            }
+        for (const SimpleEdge* edge : edge_index[projectLabel])
+        {
+            out->addEdge(edge->target.label, edge->source.label, projectLabel);
         }
 
         return out;

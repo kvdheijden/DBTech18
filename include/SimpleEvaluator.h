@@ -7,6 +7,8 @@
 
 
 #include <memory>
+#include <iostream>
+#include <unordered_set>
 #include <cmath>
 #include "SimpleGraph.h"
 #include "RPQTree.h"
@@ -17,6 +19,9 @@ class SimpleEvaluator : public Evaluator {
 
     std::shared_ptr<SimpleGraph> graph;
     std::shared_ptr<SimpleEstimator> est;
+
+    //map<edge, vector<pair<vertex, vector<edge>>>
+    std::unordered_map<uint32_t, std::vector<const SimpleEdge*>> edge_index;
 
 public:
 
