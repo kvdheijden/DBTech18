@@ -110,7 +110,14 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::evaluate_aux(RPQTree *q) {
         std::shared_ptr<SimpleGraph> left = evaluate_aux(q->left);
         std::shared_ptr<SimpleGraph> right = evaluate_aux(q->right);
 
-        return join(left, right);
+        //trivial "plan" selection/avoid worst possible join
+        if (left->getNoVertices() > right->getNoVertices()) {
+            return join(right, left);
+        }
+        else
+        {
+            return join(left, right);
+        }
     }
 
     throw std::runtime_error("Invalid RPQTree for evaluation");
