@@ -189,9 +189,9 @@ RPQTree* SimpleEvaluator::generateEfficientAST(std::vector<uint32_t> &query, uin
 
         // Get the best plans for the subqueries and add their costs to cost.
         RPQTree *subQueryTree1 = generateEfficientAST(subQuery1, cost, ec);
-        if (cost >= bestCost) { continue; } // If cost is already higher, no need to explore further.
+        if (cost >= bestCost) { delete subQueryTree1; continue; } // If cost is already higher, no need to explore further.
         RPQTree *subQueryTree2 = generateEfficientAST(subQuery2, cost, ec);
-        if (cost >= bestCost) { continue; } // If cost is already higher, no need to explore further.
+        if (cost >= bestCost) { delete subQueryTree1; delete subQueryTree2; continue; } // If cost is already higher, no need to explore further.
 
         int estimate1;
         int estimate2;
