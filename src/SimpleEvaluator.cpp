@@ -187,7 +187,7 @@ RPQTree* SimpleEvaluator::generateEfficientAST(std::vector<uint32_t> &query, uin
         int estimate2;
         // Get estimated cost of join.
         if (ec.find(vecToString(subQuery1)) != ec.end()) { // Check if in cache.
-                estimate1 = ec[vecToString(subQuery1)];
+            estimate1 = ec[vecToString(subQuery1)];
         } else {
             estimate1 = est->estimate(subQueryTree1).noPaths;
             //usleep(1000); // Artificial estimation time increase to check caching effect.
@@ -200,7 +200,7 @@ RPQTree* SimpleEvaluator::generateEfficientAST(std::vector<uint32_t> &query, uin
             //usleep(1000); // Artificial estimation time increase to check caching effect.
             ec[vecToString(subQuery2)] = static_cast<unsigned int>(estimate2);
         }
-        cost += estimate1 * estimate2;
+        cost += log(estimate1) * log(estimate2);
 
         // Keep track of the plan with the lowest score so far.
         if (cost <= bestCost) {
@@ -242,15 +242,15 @@ cardStat SimpleEvaluator::evaluate(RPQTree *query) {
 
     // Re-order the AST to a more efficient plan.
 //    auto start = std::chrono::steady_clock::now();
-//    RPQTree *queryEff = convertEfficientAST(query);
+    RPQTree *queryEff = convertEfficientAST(query);
 //    auto end = std::chrono::steady_clock::now();
 //    std::cout << "Time to plan: " << std::chrono::duration<double, std::milli>(end - start).count() << " ms" << std::endl;
 
-    //RPQTree *queryEff = query;
+//    RPQTree *queryEff = query;
 
     //std::cout << std::endl << "Converted parsed query tree: ";
     //queryEff->print();
 
-    std::shared_ptr<SimpleGraph> res = evaluate_aux(query);
+    std::shared_ptr<SimpleGraph> res = evaluate_aux(queryEff);
     return computeStats(res);
 }

@@ -189,6 +189,7 @@ void SimpleEstimator::prepareProbability() {
 
     // Go through all nodes and count the transition labels and number of nodes with specific outgoing transitions.
     for (uint32_t i = 0; i < N; i++) {
+//        std::cout << std::endl << "Progress: " << i << "/" << N;
         countPaths(labels, i);
     }
 
