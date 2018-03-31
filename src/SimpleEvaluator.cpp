@@ -4,6 +4,7 @@
 
 #include <chrono>
 #include <iostream>
+#include <memory>
 //#include <unistd.h>
 #include "SimpleEstimator.h"
 #include "SimpleEvaluator.h"
@@ -97,8 +98,15 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::join(std::shared_ptr<SimpleGraph> 
 
 std::shared_ptr<SimpleGraph> SimpleEvaluator::evaluate_aux(RPQTree *q) {
 
-    // evaluate according to the AST bottom-up
-    if(q->isLeaf()) {
+    // Convert the query to a string.
+    std::vector<uint32_t> query;
+    est->convertQuery(q, query);
+    std::string qString = vecToString(query);
+
+    // Check if query is already in cache.
+    if (evaluationCache.find(qString) != evaluationCache.end()) {
+        return evaluationCache[qString];
+    } else if(q->isLeaf()) { // evaluate according to the AST bottom-up
         const char *c_str = q->data.c_str();
         char *end;
         uint32_t label = std::strtoul(c_str, &end, 10);
@@ -110,12 +118,17 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::evaluate_aux(RPQTree *q) {
         std::shared_ptr<SimpleGraph> left = evaluate_aux(q->left);
         std::shared_ptr<SimpleGraph> right = evaluate_aux(q->right);
 
+        std::shared_ptr<SimpleGraph> joinResult;
         //trivial "plan" selection/avoid worst possible join
         if (left->getNoVertices() > right->getNoVertices()) {
-            return join(right, left);
+            joinResult = join(right, left);
         } else {
-            return join(left, right);
+            joinResult = join(left, right);
         }
+        // Cache the query. TODO, maybe only if the query is of a certain length or higher to save memory.
+        evaluationCache[qString] = joinResult;
+
+        return joinResult;
     }
 
     throw std::runtime_error("Invalid RPQTree for evaluation");
