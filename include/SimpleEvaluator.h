@@ -20,8 +20,8 @@ class SimpleEvaluator : public Evaluator {
     std::shared_ptr<SimpleGraph> graph;
     std::shared_ptr<SimpleEstimator> est;
 
-    // Unordered (hash)map for caching evaluations.
-    std::unordered_map<std::string, std::shared_ptr<SimpleGraph>> evaluationCache;
+   // Unordered (hash)map for caching evaluations.// CACHING
+   std::unordered_map<std::string, std::shared_ptr<SimpleGraph>> evaluationCache;// CACHING
 
     //map<edge, vector<pair<vertex, vector<edge>>>
     std::unordered_map<uint32_t, std::vector<const SimpleEdge*>> edge_index;

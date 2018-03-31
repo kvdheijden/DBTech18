@@ -98,15 +98,15 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::join(std::shared_ptr<SimpleGraph> 
 
 std::shared_ptr<SimpleGraph> SimpleEvaluator::evaluate_aux(RPQTree *q) {
 
-    // Convert the query to a string.
-    std::vector<uint32_t> query;
-    est->convertQuery(q, query);
-    std::string qString = vecToString(query);
+    // Convert the query to a string.// CACHING
+   std::vector<uint32_t> query;// CACHING
+   est->convertQuery(q, query);// CACHING
+   std::string qString = vecToString(query);// CACHING
 
-    // Check if query is already in cache.
-    if (evaluationCache.find(qString) != evaluationCache.end()) {
-        return evaluationCache[qString];
-    } else if(q->isLeaf()) { // evaluate according to the AST bottom-up
+    // Check if query is already in cache.// CACHING
+   if (evaluationCache.find(qString) != evaluationCache.end()) {// CACHING
+       return evaluationCache[qString];// CACHING
+   } else if(q->isLeaf()) { // evaluate according to the AST bottom-up
         const char *c_str = q->data.c_str();
         char *end;
         uint32_t label = std::strtoul(c_str, &end, 10);
@@ -119,14 +119,10 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::evaluate_aux(RPQTree *q) {
         std::shared_ptr<SimpleGraph> right = evaluate_aux(q->right);
 
         std::shared_ptr<SimpleGraph> joinResult;
-        //trivial "plan" selection/avoid worst possible join
-        if (left->getNoVertices() > right->getNoVertices()) {
-            joinResult = join(right, left);
-        } else {
-            joinResult = join(left, right);
-        }
-        // Cache the query. TODO, maybe only if the query is of a certain length or higher to save memory.
-        evaluationCache[qString] = joinResult;
+        joinResult = join(left, right);
+
+       // Cache the query.// CACHING
+       evaluationCache[qString] = joinResult;// CACHING
 
         return joinResult;
     }
@@ -215,7 +211,8 @@ RPQTree* SimpleEvaluator::generateEfficientAST(std::vector<uint32_t> &query, uin
         }
 //        cost += log(estimate1) * log(estimate2);
 //        cost += sqrt(estimate1) * sqrt(estimate2);
-        cost += std::min(estimate1, estimate2);
+//        cost += std::min(estimate1, estimate2);
+        cost += estimate1 + estimate2/4; // The number of edges in 1 is most important.
 
         // Keep track of the plan with the lowest score so far.
         if (cost <= bestCost) {
@@ -233,7 +230,12 @@ RPQTree* SimpleEvaluator::generateEfficientAST(std::vector<uint32_t> &query, uin
         }
     }
 
-    totalCost += bestCost;
+    // Check if query part already in cache, if so, it costs nothing.
+    if (evaluationCache.find(vecToString(query)) != evaluationCache.end()) {
+        totalCost += 0;
+    } else {
+        totalCost += bestCost;
+    }
     return bestPlan;
 }
 
