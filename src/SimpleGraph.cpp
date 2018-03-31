@@ -179,3 +179,12 @@ SimpleVertex *SimpleGraph::getVertex(uint32_t i) {
         throw std::runtime_error(std::string("Vertex data out of bound: (") + std::to_string(i) + ")");
     return this->V[i];
 }
+
+SimpleGraph::~SimpleGraph() {
+    for(SimpleVertex *v : V) {
+        delete v;
+    }
+    for(SimpleEdge *e : E) {
+        delete e;
+    }
+}

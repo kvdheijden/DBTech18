@@ -58,6 +58,8 @@ public:
 
     SimpleGraph();
 
+    ~SimpleGraph();
+
     explicit SimpleGraph(uint32_t n_L);
 
     SimpleGraph(uint32_t n_V, uint32_t n_L);
