@@ -16,12 +16,12 @@ class SimpleVertex;
 
 class SimpleEdge {
 public:
-    SimpleEdge(uint32_t label, const SimpleVertex& subject, const SimpleVertex& object);
+    SimpleEdge(uint32_t label, const SimpleVertex * subject, const SimpleVertex * object);
 
     const uint32_t label;
 
-    const SimpleVertex& source;
-    const SimpleVertex& target;
+    const SimpleVertex * source;
+    const SimpleVertex * target;
 };
 
 class SimpleVertex {
@@ -35,8 +35,8 @@ public:
     const std::vector<const SimpleEdge *>& outgoing() const;
     const std::vector<const SimpleEdge *>& incoming() const;
 
-    void insert_outgoing(const SimpleEdge& e);
-    void insert_incoming(const SimpleEdge& e);
+    void insert_outgoing(const SimpleEdge * e);
+    void insert_incoming(const SimpleEdge * e);
 
     uint32_t inDegree() const;
     uint32_t outDegree() const;
@@ -51,12 +51,14 @@ class SimpleGraph : public Graph {
 private:
     uint32_t L;
 
-    std::deque<SimpleVertex> V;
-    std::deque<SimpleEdge> E;
+    std::vector<SimpleVertex *> V;
+    std::vector<SimpleEdge *> E;
 
 public:
 
     SimpleGraph();
+
+    ~SimpleGraph();
 
     explicit SimpleGraph(uint32_t n_L);
 
@@ -78,7 +80,7 @@ public:
 
     void readFromContiguousFile(const std::string &fileName) override;
 
-    SimpleVertex &getVertex(uint32_t i);
+    SimpleVertex *getVertex(uint32_t i);
 };
 
 #endif //QS_SIMPLEGRAPH_H

@@ -5,7 +5,7 @@
 #include "SimpleGraph.h"
 
 /// SimpleEdge
-SimpleEdge::SimpleEdge(uint32_t label, const SimpleVertex& subject, const SimpleVertex& object)
+SimpleEdge::SimpleEdge(uint32_t label, const SimpleVertex * subject, const SimpleVertex * object)
         : label(label), source(subject), target(object) {}
 
 /// SimpleVertex
@@ -31,16 +31,16 @@ const std::vector<const SimpleEdge *> &SimpleVertex::incoming() const {
     return r_adj;
 }
 
-void SimpleVertex::insert_outgoing(const SimpleEdge& e) {
-    if(e.source != *this)
+void SimpleVertex::insert_outgoing(const SimpleEdge * e) {
+    if(*e->source != *this)
         throw std::runtime_error("Outgoing edge subject not equal to this.");
-    this->adj.push_back(&e);
+    this->adj.push_back(e);
 }
 
-void SimpleVertex::insert_incoming(const SimpleEdge& e) {
-    if(e.target != *this)
+void SimpleVertex::insert_incoming(const SimpleEdge * e) {
+    if(*e->target != *this)
         throw std::runtime_error("Incoming edge object not equal to this.");
-    this->r_adj.push_back(&e);
+    this->r_adj.push_back(e);
 }
 
 uint32_t SimpleVertex::inDegree() const {
@@ -71,14 +71,14 @@ uint32_t SimpleGraph::getNoVertices() const {
 void SimpleGraph::setNoVertices(uint32_t v) {
     this->V.clear();
     for(uint32_t i = 0; i < v; i++) {
-        this->V.emplace_back(i);
+        this->V.push_back(new SimpleVertex(i));
     }
 }
 
 uint32_t SimpleGraph::getNoEdges() const {
     uint32_t sum = 0;
-    for(const SimpleVertex& v : V) {
-        sum += v.outDegree();
+    for(const SimpleVertex * v : V) {
+        sum += v->outDegree();
     }
     return sum;
 }
@@ -90,9 +90,9 @@ uint32_t SimpleGraph::getNoLabels() const {
 uint32_t SimpleGraph::getNoDistinctEdges() const {
     uint32_t sum = 0;
 
-    for (const SimpleVertex& sourceVec : V) {
+    for (const SimpleVertex * sourceVec : V) {
 
-        auto e = const_cast<std::vector<const SimpleEdge *> &>(sourceVec.outgoing());
+        auto e = const_cast<std::vector<const SimpleEdge *> &>(sourceVec->outgoing());
         std::sort(e.begin(), e.end(), [](const SimpleEdge * a, const SimpleEdge * b) {
             if (a->target == b->target) {
                 return a->label < b->label;
@@ -104,9 +104,9 @@ uint32_t SimpleGraph::getNoDistinctEdges() const {
         uint32_t prevLabel = 0;
 
         for (const SimpleEdge* edge : e) {
-            if (!(prevTarget == &edge->target && prevLabel == edge->label)) {
+            if (!(prevTarget == edge->target && prevLabel == edge->label)) {
                 sum++;
-                prevTarget = &edge->target;
+                prevTarget = edge->target;
                 prevLabel = edge->label;
             }
         }
@@ -121,14 +121,14 @@ void SimpleGraph::addEdge(uint32_t from, uint32_t to, uint32_t edgeLabel) {
                                          "(" + std::to_string(from) + "," + std::to_string(to) + "," +
                                          std::to_string(edgeLabel) + ")");
 
-    SimpleVertex& subject = this->V[from];
-    SimpleVertex& object = this->V[to];
+    SimpleVertex* subject = this->V[from];
+    SimpleVertex* object = this->V[to];
 
-    this->E.emplace_back(edgeLabel, subject, object);
-    const SimpleEdge& predicate = this->E.back();
+    this->E.push_back(new SimpleEdge(edgeLabel, subject, object));
+    const SimpleEdge* predicate = this->E.back();
 
-    subject.insert_outgoing(predicate);
-    object.insert_incoming(predicate);
+    subject->insert_outgoing(predicate);
+    object->insert_incoming(predicate);
 }
 
 void SimpleGraph::readFromContiguousFile(const std::string &fileName) {
@@ -174,8 +174,17 @@ void SimpleGraph::readFromContiguousFile(const std::string &fileName) {
         throw std::runtime_error("Invalid number of vertices");
 }
 
-SimpleVertex &SimpleGraph::getVertex(uint32_t i) {
+SimpleVertex *SimpleGraph::getVertex(uint32_t i) {
     if(i >= getNoVertices())
         throw std::runtime_error(std::string("Vertex data out of bound: (") + std::to_string(i) + ")");
     return this->V[i];
+}
+
+SimpleGraph::~SimpleGraph() {
+    for(SimpleVertex *v : V) {
+        delete v;
+    }
+    for(SimpleEdge *e : E) {
+        delete e;
+    }
 }

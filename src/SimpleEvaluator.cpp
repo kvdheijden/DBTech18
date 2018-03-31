@@ -32,7 +32,7 @@ void SimpleEvaluator::prepare() {
     //Indexing:
     for(uint32_t vertex = 0; vertex < this->graph->getNoVertices(); vertex++)
     {
-        for (const SimpleEdge* edge : this->graph->getVertex(vertex).outgoing())
+        for (const SimpleEdge* edge : this->graph->getVertex(vertex)->outgoing())
         {
             edge_index[edge->label].push_back(edge);
         }
@@ -44,13 +44,13 @@ cardStat SimpleEvaluator::computeStats(std::shared_ptr<SimpleGraph> &g) {
     cardStat stats {};
 
     for(uint32_t source = 0; source < g->getNoVertices(); source++) {
-        if(g->getVertex(source).outDegree() != 0) stats.noOut++;
+        if(g->getVertex(source)->outDegree() != 0) stats.noOut++;
     }
 
     stats.noPaths = g->getNoDistinctEdges();
 
     for(uint32_t target = 0; target < g->getNoVertices(); target++) {
-        if(g->getVertex(target).inDegree() != 0) stats.noIn++;
+        if(g->getVertex(target)->inDegree() != 0) stats.noIn++;
     }
 
     return stats;
@@ -64,7 +64,7 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::project(uint32_t projectLabel, boo
         // going forward
         for (const SimpleEdge* edge : edge_index[projectLabel])
         {
-            out->addEdge(edge->source.label, edge->target.label, projectLabel);
+            out->addEdge(edge->source->label, edge->target->label, projectLabel);
         }
 
         return out;
@@ -72,7 +72,7 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::project(uint32_t projectLabel, boo
         // going backward
         for (const SimpleEdge* edge : edge_index[projectLabel])
         {
-            out->addEdge(edge->target.label, edge->source.label, projectLabel);
+            out->addEdge(edge->target->label, edge->source->label, projectLabel);
         }
 
         return out;
@@ -84,10 +84,10 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::join(std::shared_ptr<SimpleGraph> 
     auto out = std::make_shared<SimpleGraph>(left->getNoVertices(), 1);
 
     for(uint32_t leftSource = 0; leftSource < left->getNoVertices(); leftSource++) {
-        for (const SimpleEdge* labelTarget : left->getVertex(leftSource).outgoing()) {
+        for (const SimpleEdge* labelTarget : left->getVertex(leftSource)->outgoing()) {
             // try to join the left target with right source
-            for (const SimpleEdge* rightLabelTarget : right->getVertex(labelTarget->target.label).outgoing()) {
-                out->addEdge(leftSource, rightLabelTarget->target.label, 0);
+            for (const SimpleEdge* rightLabelTarget : right->getVertex(labelTarget->target->label)->outgoing()) {
+                out->addEdge(leftSource, rightLabelTarget->target->label, 0);
             }
         }
     }
@@ -109,7 +109,7 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::evaluate_aux(RPQTree *q) {
     } else if (q->isBinary()) {
         std::shared_ptr<SimpleGraph> left = evaluate_aux(q->left);
         std::shared_ptr<SimpleGraph> right = evaluate_aux(q->right);
-
+        
         return join(left, right);
     }
 
@@ -162,7 +162,7 @@ RPQTree* SimpleEvaluator::generateEfficientAST(std::vector<uint32_t> &query, uin
     // Try out all different possible plans using estimation.
     // Do a join at every possible index, recursively generate most efficient plans for each side.
     uint32_t bestCost = INT32_MAX;
-    RPQTree* bestPlan;
+    RPQTree* bestPlan = nullptr;
 
     for (int i = 1; i < query.size(); ++i) {
         uint32_t cost = 0;
@@ -182,26 +182,36 @@ RPQTree* SimpleEvaluator::generateEfficientAST(std::vector<uint32_t> &query, uin
         int estimate2;
         // Get estimated cost of join.
         if (ec.find(vecToString(subQuery1)) != ec.end()) { // Check if in cache.
-                estimate1 = ec[vecToString(subQuery1)];
-            } else {
+            estimate1 = ec[vecToString(subQuery1)];
+        } else {
             estimate1 = est->estimate(subQueryTree1).noPaths;
             //usleep(1000); // Artificial estimation time increase to check caching effect.
-            ec[vecToString(subQuery1)] = estimate1;
+            ec[vecToString(subQuery1)] = static_cast<unsigned int>(estimate1);
         }
         if (ec.find(vecToString(subQuery2)) != ec.end()) { // Check if in cache.
             estimate2 = ec[vecToString(subQuery2)];
         } else {
             estimate2 = est->estimate(subQueryTree2).noPaths;
             //usleep(1000); // Artificial estimation time increase to check caching effect.
-            ec[vecToString(subQuery2)] = estimate2;
+            ec[vecToString(subQuery2)] = static_cast<unsigned int>(estimate2);
         }
-        cost += estimate1 * estimate2;
+//        cost += log(estimate1) * log(estimate2);
+//        cost += sqrt(estimate1) * sqrt(estimate2);
+        cost += std::min(estimate1, estimate2);
 
         // Keep track of the plan with the lowest score so far.
         if (cost <= bestCost) {
             bestCost = cost;
             std::string slash = "/";
+
+            // Delete old best plan (avoid memory leak)
+            delete bestPlan;
+
             bestPlan = new RPQTree(slash, subQueryTree1, subQueryTree2);
+        } else {
+            // Delete sub queries
+            delete subQueryTree1;
+            delete subQueryTree2;
         }
     }
 
@@ -229,15 +239,15 @@ cardStat SimpleEvaluator::evaluate(RPQTree *query) {
 
     // Re-order the AST to a more efficient plan.
 //    auto start = std::chrono::steady_clock::now();
-//    RPQTree *queryEff = convertEfficientAST(query);
+    RPQTree *queryEff = convertEfficientAST(query);
 //    auto end = std::chrono::steady_clock::now();
 //    std::cout << "Time to plan: " << std::chrono::duration<double, std::milli>(end - start).count() << " ms" << std::endl;
 
-    //RPQTree *queryEff = query;
+//    RPQTree *queryEff = query;
 
     //std::cout << std::endl << "Converted parsed query tree: ";
     //queryEff->print();
 
-    std::shared_ptr<SimpleGraph> res = evaluate_aux(query);
+    std::shared_ptr<SimpleGraph> res = evaluate_aux(queryEff);
     return computeStats(res);
 }
