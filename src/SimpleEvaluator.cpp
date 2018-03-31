@@ -98,15 +98,16 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::join(std::shared_ptr<SimpleGraph> 
 
 std::shared_ptr<SimpleGraph> SimpleEvaluator::evaluate_aux(RPQTree *q) {
 
-    // Convert the query to a string.// CACHING
-   std::vector<uint32_t> query;// CACHING
-   est->convertQuery(q, query);// CACHING
-   std::string qString = vecToString(query);// CACHING
+// CACHING    // Convert the query to a string.
+// CACHING   std::vector<uint32_t> query;
+// CACHING   est->convertQuery(q, query);
+// CACHING   std::string qString = vecToString(query);
 
-    // Check if query is already in cache.// CACHING
-   if (evaluationCache.find(qString) != evaluationCache.end()) {// CACHING
-       return evaluationCache[qString];// CACHING
-   } else if(q->isLeaf()) { // evaluate according to the AST bottom-up
+// CACHING    // Check if query is already in cache.
+// CACHING   if (evaluationCache.find(qString) != evaluationCache.end()) {
+// CACHING       return evaluationCache[qString];
+// CACHING   } else
+    if(q->isLeaf()) { // evaluate according to the AST bottom-up
         const char *c_str = q->data.c_str();
         char *end;
         uint32_t label = std::strtoul(c_str, &end, 10);
@@ -121,8 +122,8 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::evaluate_aux(RPQTree *q) {
         std::shared_ptr<SimpleGraph> joinResult;
         joinResult = join(left, right);
 
-       // Cache the query.// CACHING
-       evaluationCache[qString] = joinResult;// CACHING
+// CACHING       // Cache the query.
+// CACHING       evaluationCache[qString] = joinResult;
 
         return joinResult;
     }
@@ -230,12 +231,12 @@ RPQTree* SimpleEvaluator::generateEfficientAST(std::vector<uint32_t> &query, uin
         }
     }
 
-    // Check if query part already in cache, if so, it costs nothing.
-    if (evaluationCache.find(vecToString(query)) != evaluationCache.end()) {
-        totalCost += 0;
-    } else {
+// CACHING   // Check if query part already in cache, if so, it costs nothing.
+// CACHING   if (evaluationCache.find(vecToString(query)) != evaluationCache.end()) {
+// CACHING       totalCost += 0;
+// CACHING   } else {
         totalCost += bestCost;
-    }
+// CACHING   }
     return bestPlan;
 }
 
