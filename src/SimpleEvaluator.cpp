@@ -201,7 +201,8 @@ RPQTree* SimpleEvaluator::generateEfficientAST(std::vector<uint32_t> &query, uin
             ec[vecToString(subQuery2)] = static_cast<unsigned int>(estimate2);
         }
 //        cost += log(estimate1) * log(estimate2);
-        cost += sqrt(estimate1) * sqrt(estimate2);
+//        cost += sqrt(estimate1) * sqrt(estimate2);
+        cost += std::max(estimate1, estimate2);
 
         // Keep track of the plan with the lowest score so far.
         if (cost <= bestCost) {
