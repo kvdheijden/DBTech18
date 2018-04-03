@@ -5,7 +5,6 @@
 #include <chrono>
 #include <iostream>
 #include <memory>
-//#include <unistd.h>
 #include "SimpleEstimator.h"
 #include "SimpleEvaluator.h"
 
@@ -33,7 +32,7 @@ void SimpleEvaluator::prepare() {
     //Indexing:
     for(uint32_t vertex = 0; vertex < this->graph->getNoVertices(); vertex++)
     {
-        for (const SimpleEdge* edge : this->graph->getVertex(vertex)->outgoing())
+        for (const auto& edge : this->graph->getAdjacency(vertex))
         {
             edge_index[edge->label].push_back(edge);
         }
@@ -45,13 +44,13 @@ cardStat SimpleEvaluator::computeStats(std::shared_ptr<SimpleGraph> &g) {
     cardStat stats {};
 
     for(uint32_t source = 0; source < g->getNoVertices(); source++) {
-        if(g->getVertex(source)->outDegree() != 0) stats.noOut++;
+        if(!g->getAdjacency(source).empty()) stats.noOut++;
     }
 
     stats.noPaths = g->getNoDistinctEdges();
 
     for(uint32_t target = 0; target < g->getNoVertices(); target++) {
-        if(g->getVertex(target)->inDegree() != 0) stats.noIn++;
+        if(!g->getReverseAdjacency(target).empty()) stats.noIn++;
     }
 
     return stats;
@@ -63,17 +62,17 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::project(uint32_t projectLabel, boo
 
     if(!inverse) {
         // going forward
-        for (const SimpleEdge* edge : edge_index[projectLabel])
+        for (const auto &edge : edge_index[projectLabel])
         {
-            out->addEdge(edge->source->label, edge->target->label, projectLabel);
+            out->addEdge(edge->source, edge->target, projectLabel);
         }
 
         return out;
     } else {
         // going backward
-        for (const SimpleEdge* edge : edge_index[projectLabel])
+        for (const auto &edge : edge_index[projectLabel])
         {
-            out->addEdge(edge->target->label, edge->source->label, projectLabel);
+            out->addEdge(edge->target, edge->source, projectLabel);
         }
 
         return out;
@@ -85,10 +84,10 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::join(std::shared_ptr<SimpleGraph> 
     auto out = std::make_shared<SimpleGraph>(left->getNoVertices(), 1);
 
     for(uint32_t leftSource = 0; leftSource < left->getNoVertices(); leftSource++) {
-        for (const SimpleEdge* labelTarget : left->getVertex(leftSource)->outgoing()) {
+        for (const auto &labelTarget : left->getAdjacency(leftSource)) {
             // try to join the left target with right source
-            for (const SimpleEdge* rightLabelTarget : right->getVertex(labelTarget->target->label)->outgoing()) {
-                out->addEdge(leftSource, rightLabelTarget->target->label, 0);
+            for (const auto &rightLabelTarget : right->getAdjacency(labelTarget->target)) {
+                out->addEdge(leftSource, rightLabelTarget->target, 0);
             }
         }
     }
@@ -119,8 +118,7 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::evaluate_aux(RPQTree *q) {
         std::shared_ptr<SimpleGraph> left = evaluate_aux(q->left);
         std::shared_ptr<SimpleGraph> right = evaluate_aux(q->right);
 
-        std::shared_ptr<SimpleGraph> joinResult;
-        joinResult = join(left, right);
+        std::shared_ptr<SimpleGraph> joinResult = join(left, right);
 
 // CACHING       // Cache the query.
 // CACHING       evaluationCache[qString] = joinResult;
@@ -131,16 +129,16 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::evaluate_aux(RPQTree *q) {
     throw std::runtime_error("Invalid RPQTree for evaluation");
 }
 
-/* // Could be useful later on...
+// Could be useful later on...
 uint32_t SimpleEvaluator::convertLabelToInt(std::string label) {
-    unsigned int rootLabelInt = (unsigned int)std::stoul(label);
+    unsigned int rootLabelInt = std::stoul(label);
     if (label[label.size()-1] == '+') {
         return rootLabelInt;
     } else {
         return rootLabelInt + est->L;
     }
 }
- */
+
 
 std::string SimpleEvaluator::convertIntToLabel(uint32_t i) {
     if (i < est->L) {
@@ -176,7 +174,7 @@ RPQTree* SimpleEvaluator::generateEfficientAST(std::vector<uint32_t> &query, uin
 
     // Try out all different possible plans using estimation.
     // Do a join at every possible index, recursively generate most efficient plans for each side.
-    uint32_t bestCost = INT32_MAX;
+    uint32_t bestCost = UINT32_MAX;
     RPQTree* bestPlan = nullptr;
 
     for (int i = 1; i < query.size(); ++i) {
@@ -270,5 +268,6 @@ cardStat SimpleEvaluator::evaluate(RPQTree *query) {
     //queryEff->print();
 
     std::shared_ptr<SimpleGraph> res = evaluate_aux(queryEff);
+    delete queryEff;
     return computeStats(res);
 }

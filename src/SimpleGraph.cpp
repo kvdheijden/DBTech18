@@ -5,111 +5,60 @@
 #include "SimpleGraph.h"
 
 /// SimpleEdge
-SimpleEdge::SimpleEdge(uint32_t label, const SimpleVertex * subject, const SimpleVertex * object)
+SimpleEdge::SimpleEdge(uint32_t label, uint32_t subject, uint32_t object)
         : label(label), source(subject), target(object) {}
 
-/// SimpleVertex
-SimpleVertex::SimpleVertex(uint32_t l) : adj(), r_adj(), label(l) {}
-
-bool SimpleVertex::operator<(const SimpleVertex &other) const {
-    return label < other.label;
-}
-
-bool SimpleVertex::operator==(const SimpleVertex &other) const {
-    return label == other.label;
-}
-
-bool SimpleVertex::operator!=(const SimpleVertex &other) const {
-    return label != other.label;
-}
-
-const std::vector<const SimpleEdge *> &SimpleVertex::outgoing() const {
-    return adj;
-}
-
-const std::vector<const SimpleEdge *> &SimpleVertex::incoming() const {
-    return r_adj;
-}
-
-void SimpleVertex::insert_outgoing(const SimpleEdge * e) {
-    if(*e->source != *this)
-        throw std::runtime_error("Outgoing edge subject not equal to this.");
-    this->adj.push_back(e);
-}
-
-void SimpleVertex::insert_incoming(const SimpleEdge * e) {
-    if(*e->target != *this)
-        throw std::runtime_error("Incoming edge object not equal to this.");
-    this->r_adj.push_back(e);
-}
-
-uint32_t SimpleVertex::inDegree() const {
-    return adj.size();
-}
-
-uint32_t SimpleVertex::outDegree() const {
-    return r_adj.size();
-}
-
 /// SimpleGraph
-SimpleGraph::SimpleGraph(const std::string& file) {
-    this->readFromContiguousFile(file);
-}
-
 SimpleGraph::SimpleGraph(uint32_t n_V, uint32_t n_L) {
     setNoVertices(n_V);
-    this->L = n_L;
+    setNoLabels(n_L);
+    setNoEdges(0);
 }
 
 SimpleGraph::SimpleGraph(uint32_t n_L) : SimpleGraph(0, n_L) {}
 SimpleGraph::SimpleGraph() : SimpleGraph(0) {}
 
 uint32_t SimpleGraph::getNoVertices() const {
-    return this->V.size();
+    return this->V;
 }
 
 void SimpleGraph::setNoVertices(uint32_t v) {
-    this->V.clear();
-    for(uint32_t i = 0; i < v; i++) {
-        this->V.push_back(new SimpleVertex(i));
-    }
+    this->V = v;
 }
 
 uint32_t SimpleGraph::getNoEdges() const {
     uint32_t sum = 0;
-    for(const SimpleVertex * v : V) {
-        sum += v->outDegree();
+    for(const auto& v : adj) {
+        sum += v.second.size();
     }
     return sum;
+}
+
+void SimpleGraph::setNoEdges(uint32_t e) {
+    this->E = e;
 }
 
 uint32_t SimpleGraph::getNoLabels() const {
     return L;
 }
 
+void SimpleGraph::setNoLabels(uint32_t l) {
+    this->L = l;
+}
+
 uint32_t SimpleGraph::getNoDistinctEdges() const {
     uint32_t sum = 0;
 
-    for (const SimpleVertex * sourceVec : V) {
-
-        auto e = const_cast<std::vector<const SimpleEdge *> &>(sourceVec->outgoing());
-        std::sort(e.begin(), e.end(), [](const SimpleEdge * a, const SimpleEdge * b) {
+    for (const auto& sourceVec : adj) {
+        const std::vector<std::shared_ptr<SimpleEdge>>& v = sourceVec.second;
+        std::set<std::shared_ptr<SimpleEdge>, bool(*)(const std::shared_ptr<SimpleEdge>&, const std::shared_ptr<SimpleEdge>&)> s(v.begin(), v.end(), [](const std::shared_ptr<SimpleEdge>& a, const std::shared_ptr<SimpleEdge>& b) {
             if (a->target == b->target) {
                 return a->label < b->label;
             }
             return a->target < b->target;
         });
 
-        const SimpleVertex* prevTarget = nullptr;
-        uint32_t prevLabel = 0;
-
-        for (const SimpleEdge* edge : e) {
-            if (!(prevTarget == edge->target && prevLabel == edge->label)) {
-                sum++;
-                prevTarget = edge->target;
-                prevLabel = edge->label;
-            }
-        }
+        sum += s.size();
     }
 
     return sum;
@@ -121,14 +70,9 @@ void SimpleGraph::addEdge(uint32_t from, uint32_t to, uint32_t edgeLabel) {
                                          "(" + std::to_string(from) + "," + std::to_string(to) + "," +
                                          std::to_string(edgeLabel) + ")");
 
-    SimpleVertex* subject = this->V[from];
-    SimpleVertex* object = this->V[to];
-
-    this->E.push_back(new SimpleEdge(edgeLabel, subject, object));
-    const SimpleEdge* predicate = this->E.back();
-
-    subject->insert_outgoing(predicate);
-    object->insert_incoming(predicate);
+    std::shared_ptr<SimpleEdge> edge = std::make_shared<SimpleEdge>(edgeLabel, from, to);
+    adj[from].push_back(edge);
+    r_adj[to].push_back(edge);
 }
 
 void SimpleGraph::readFromContiguousFile(const std::string &fileName) {
@@ -142,14 +86,15 @@ void SimpleGraph::readFromContiguousFile(const std::string &fileName) {
     // parse the header (1st line)
     std::getline(graphFile, line);
     std::smatch matches;
-    uint32_t n_E, n_V;
+    uint32_t n_E, n_V, n_L;
     if(std::regex_search(line, matches, headerPat)) {
         n_V = (uint32_t) std::stoul(matches[1]);
         n_E = (uint32_t) std::stoul(matches[2]);
-        this->L = ((uint32_t) std::stoul(matches[3]));
+        n_L = ((uint32_t) std::stoul(matches[3]));
 
         this->setNoVertices(n_V);
-        this->E.clear();
+        this->setNoEdges(n_E);
+        this->setNoLabels(n_L);
     } else {
         throw std::runtime_error(std::string("Invalid graph header!"));
     }
@@ -168,23 +113,14 @@ void SimpleGraph::readFromContiguousFile(const std::string &fileName) {
 
     graphFile.close();
 
-    if(this->getNoEdges() != n_E)
-        throw std::runtime_error("Invalid number of edges!");
-    if(this->getNoVertices() != n_V)
-        throw std::runtime_error("Invalid number of vertices");
+    if(this->E != getNoEdges())
+        throw std::runtime_error("Edges mismatch");
 }
 
-SimpleVertex *SimpleGraph::getVertex(uint32_t i) {
-    if(i >= getNoVertices())
-        throw std::runtime_error(std::string("Vertex data out of bound: (") + std::to_string(i) + ")");
-    return this->V[i];
+std::vector<std::shared_ptr<SimpleEdge>> &SimpleGraph::getAdjacency(uint32_t n) {
+    return adj[n];
 }
 
-SimpleGraph::~SimpleGraph() {
-    for(SimpleVertex *v : V) {
-        delete v;
-    }
-    for(SimpleEdge *e : E) {
-        delete e;
-    }
+std::vector<std::shared_ptr<SimpleEdge>> &SimpleGraph::getReverseAdjacency(uint32_t n) {
+    return r_adj[n];
 }

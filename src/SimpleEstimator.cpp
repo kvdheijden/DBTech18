@@ -152,13 +152,13 @@ void SimpleEstimator::calculatePathProbabilities(dimArr<float, S>& labelProbabil
 template <>
 void SimpleEstimator::countPaths<1>(dimArr<uint32_t, 1>& path, uint32_t node) {
     // Go through all outgoing transitions from this node.
-    for ( const SimpleEdge* t : graph->getVertex(node)->outgoing() ) {
+    for ( const auto &t : graph->getAdjacency(node) ) {
         uint32_t label = t->label;
         path[label]++;
     }
 
     // Go through all incoming transitions from this node.
-    for ( const SimpleEdge* t : graph->getVertex(node)->incoming() ) {
+    for ( const auto &t : graph->getReverseAdjacency(node) ) {
         uint32_t label = t->label;
         path[L+label]++;
     }
@@ -167,16 +167,16 @@ void SimpleEstimator::countPaths<1>(dimArr<uint32_t, 1>& path, uint32_t node) {
 template<size_t S>
 void SimpleEstimator::countPaths(dimArr<uint32_t, S> &path, uint32_t node) {
     // Go through all outgoing transitions from this node.
-    for ( const SimpleEdge* t : graph->getVertex(node)->outgoing() ) {
+    for ( const auto &t : graph->getAdjacency(node) ) {
         uint32_t label = t->label;
-        countPaths(path[label].first, t->target->label);
+        countPaths(path[label].first, t->target);
         path[label].second++;
     }
 
     // Go through all incoming transitions from this node.
-    for ( const SimpleEdge* t : graph->getVertex(node)->incoming() ) {
+    for ( const auto &t : graph->getReverseAdjacency(node) ) {
         uint32_t label = t->label;
-        countPaths(path[L+label].first, t->source->label);
+        countPaths(path[L+label].first, t->source);
         path[L+label].second++;
     }
 }
@@ -198,7 +198,6 @@ void SimpleEstimator::prepareProbability() {
 
     // Go through all nodes and count the transition labels and number of nodes with specific outgoing transitions.
     for ( uint32_t i = 0; i < graph->getNoVertices(); i++ ) {
-        SimpleVertex * n = graph->getVertex(i);
 
         // Reset flags for which labels have already been seen for this node.
         for (auto &&b : seenLabelForNode) {
@@ -206,7 +205,7 @@ void SimpleEstimator::prepareProbability() {
         }
 
         // Go through all transitions from this node.
-        for ( const SimpleEdge* t : n->outgoing() ) {
+        for ( const auto &t : graph->getAdjacency(i) ) {
             uint32_t label = t->label;
             if ( !seenLabelForNode[label] ) {
                 nodesWithOutLabel[label]++;
@@ -217,7 +216,6 @@ void SimpleEstimator::prepareProbability() {
 
     // Go through all nodes and count the number of nodes with specific incoming transitions.
     for ( uint32_t i = 0; i < graph->getNoVertices(); i++ ) {
-        SimpleVertex * n = graph->getVertex(i);
 
         // Reset flags for which labels have already been seen for this node.
         for (auto &&b : seenLabelForNode) {
@@ -225,7 +223,7 @@ void SimpleEstimator::prepareProbability() {
         }
 
         // Go through all transitions to this node.
-        for ( const SimpleEdge* t : n->incoming() ) {
+        for ( const auto &t : graph->getReverseAdjacency(i) ) {
             uint32_t label = t->label;
             if ( !seenLabelForNode[label] ) {
                 nodesWithInLabel[label]++;

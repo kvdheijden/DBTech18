@@ -12,63 +12,42 @@
 
 #include "Graph.h"
 
-class SimpleVertex;
-
 class SimpleEdge {
 public:
-    SimpleEdge(uint32_t label, const SimpleVertex * subject, const SimpleVertex * object);
+    SimpleEdge(uint32_t label, uint32_t subject, uint32_t object);
 
     const uint32_t label;
 
-    const SimpleVertex * source;
-    const SimpleVertex * target;
-};
-
-class SimpleVertex {
-private:
-    std::vector<const SimpleEdge *> adj;
-    std::vector<const SimpleEdge *> r_adj;
-
-public:
-    const uint32_t label;
-
-    const std::vector<const SimpleEdge *>& outgoing() const;
-    const std::vector<const SimpleEdge *>& incoming() const;
-
-    void insert_outgoing(const SimpleEdge * e);
-    void insert_incoming(const SimpleEdge * e);
-
-    uint32_t inDegree() const;
-    uint32_t outDegree() const;
-
-    explicit SimpleVertex(uint32_t l);
-    bool operator<(const SimpleVertex& other) const;
-    bool operator==(const SimpleVertex& other) const;
-    bool operator!=(const SimpleVertex& other) const;
+    const uint32_t source;
+    const uint32_t target;
 };
 
 class SimpleGraph : public Graph {
 private:
     uint32_t L;
+    uint32_t V;
+    uint32_t E;
 
-    std::vector<SimpleVertex *> V;
-    std::vector<SimpleEdge *> E;
+    std::unordered_map<uint32_t, std::vector<std::shared_ptr<SimpleEdge>>> adj;
+    std::unordered_map<uint32_t, std::vector<std::shared_ptr<SimpleEdge>>> r_adj;
+
+    void setNoVertices(uint32_t v);
+
+    void setNoEdges(uint32_t e);
+
+    void setNoLabels(uint32_t l);
 
 public:
 
     SimpleGraph();
 
-    ~SimpleGraph();
+    ~SimpleGraph() = default;
 
     explicit SimpleGraph(uint32_t n_L);
 
     SimpleGraph(uint32_t n_V, uint32_t n_L);
 
-    explicit SimpleGraph(const std::string& fileName);
-
     uint32_t getNoVertices() const override;
-
-    void setNoVertices(uint32_t v);
 
     uint32_t getNoEdges() const override;
 
@@ -80,7 +59,8 @@ public:
 
     void readFromContiguousFile(const std::string &fileName) override;
 
-    SimpleVertex *getVertex(uint32_t i);
+    std::vector<std::shared_ptr<SimpleEdge>>& getAdjacency(uint32_t n);
+    std::vector<std::shared_ptr<SimpleEdge>>& getReverseAdjacency(uint32_t n);
 };
 
 #endif //QS_SIMPLEGRAPH_H
