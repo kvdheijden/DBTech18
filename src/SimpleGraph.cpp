@@ -4,11 +4,6 @@
 
 #include "SimpleGraph.h"
 
-/// SimpleEdge
-SimpleEdge::SimpleEdge(uint32_t label, uint32_t subject, uint32_t object)
-        : label(label), source(subject), target(object) {}
-
-/// SimpleGraph
 SimpleGraph::SimpleGraph(uint32_t n_V, uint32_t n_L) {
     setNoVertices(n_V);
     setNoLabels(n_L);
@@ -49,15 +44,8 @@ void SimpleGraph::setNoLabels(uint32_t l) {
 uint32_t SimpleGraph::getNoDistinctEdges() const {
     uint32_t sum = 0;
 
-    for (const auto& sourceVec : adj) {
-        const std::vector<std::shared_ptr<SimpleEdge>>& v = sourceVec.second;
-        std::set<std::shared_ptr<SimpleEdge>, bool(*)(const std::shared_ptr<SimpleEdge>&, const std::shared_ptr<SimpleEdge>&)> s(v.begin(), v.end(), [](const std::shared_ptr<SimpleEdge>& a, const std::shared_ptr<SimpleEdge>& b) {
-            if (a->target == b->target) {
-                return a->label < b->label;
-            }
-            return a->target < b->target;
-        });
-
+    for (const auto& edgeList : adj) {
+        std::set<uint32_t> s(edgeList.second.begin(), edgeList.second.end());
         sum += s.size();
     }
 
@@ -70,9 +58,8 @@ void SimpleGraph::addEdge(uint32_t from, uint32_t to, uint32_t edgeLabel) {
                                          "(" + std::to_string(from) + "," + std::to_string(to) + "," +
                                          std::to_string(edgeLabel) + ")");
 
-    std::shared_ptr<SimpleEdge> edge = std::make_shared<SimpleEdge>(edgeLabel, from, to);
-    adj[from].push_back(edge);
-    r_adj[to].push_back(edge);
+    adj[std::make_pair(from, to)].emplace_back(edgeLabel);
+    r_adj[std::make_pair(to, from)].emplace_back(edgeLabel);
 }
 
 void SimpleGraph::readFromContiguousFile(const std::string &fileName) {
@@ -117,10 +104,23 @@ void SimpleGraph::readFromContiguousFile(const std::string &fileName) {
         throw std::runtime_error("Edges mismatch");
 }
 
-std::vector<std::shared_ptr<SimpleEdge>> &SimpleGraph::getAdjacency(uint32_t n) {
-    return adj[n];
+SimpleGraph::adjacency_matrix::const_iterator SimpleGraph::begin(uint32_t n) const {
+    static constexpr int min = std::numeric_limits<uint32_t>::min();
+    return adj.lower_bound({n, min});
 }
 
-std::vector<std::shared_ptr<SimpleEdge>> &SimpleGraph::getReverseAdjacency(uint32_t n) {
-    return r_adj[n];
+SimpleGraph::adjacency_matrix::const_iterator SimpleGraph::end(uint32_t n) const {
+    static constexpr int max = std::numeric_limits<uint32_t>::max();
+    return adj.upper_bound({n, max});
 }
+
+SimpleGraph::adjacency_matrix::const_iterator SimpleGraph::rbegin(uint32_t n) const {
+    static constexpr int min = std::numeric_limits<uint32_t>::min();
+    return r_adj.lower_bound({n, min});
+}
+
+SimpleGraph::adjacency_matrix::const_iterator SimpleGraph::rend(uint32_t n) const {
+    static constexpr int max = std::numeric_limits<uint32_t>::max();
+    return r_adj.upper_bound({n, max});
+}
+

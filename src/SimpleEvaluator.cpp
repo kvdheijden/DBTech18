@@ -30,11 +30,11 @@ void SimpleEvaluator::prepare() {
     // TODO: caching
 
     //Indexing:
-    for(uint32_t vertex = 0; vertex < this->graph->getNoVertices(); vertex++)
-    {
-        for (const auto& edge : this->graph->getAdjacency(vertex))
-        {
-            edge_index[edge->label].push_back(edge);
+    for(uint32_t vertex = 0; vertex < this->graph->getNoVertices(); vertex++) {
+        for (auto edge = graph->begin(vertex); edge != graph->end(vertex); edge++) {
+            for(uint32_t label : edge->second) {
+                edge_index[label].push_back(edge->first);
+            }
         }
     }
 }
@@ -44,13 +44,13 @@ cardStat SimpleEvaluator::computeStats(std::shared_ptr<SimpleGraph> &g) {
     cardStat stats {};
 
     for(uint32_t source = 0; source < g->getNoVertices(); source++) {
-        if(!g->getAdjacency(source).empty()) stats.noOut++;
+        if(graph->begin(source) != graph->end(source)) stats.noOut++;
     }
 
     stats.noPaths = g->getNoDistinctEdges();
 
     for(uint32_t target = 0; target < g->getNoVertices(); target++) {
-        if(!g->getReverseAdjacency(target).empty()) stats.noIn++;
+        if(graph->rbegin(target) != graph->rend(target)) stats.noIn++;
     }
 
     return stats;
@@ -62,9 +62,9 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::project(uint32_t projectLabel, boo
 
     if(!inverse) {
         // going forward
-        for (const auto &edge : edge_index[projectLabel])
+        for (auto edge : edge_index[projectLabel])
         {
-            out->addEdge(edge->source, edge->target, projectLabel);
+            out->addEdge(edge.first, edge.second, projectLabel);
         }
 
         return out;
@@ -72,7 +72,7 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::project(uint32_t projectLabel, boo
         // going backward
         for (const auto &edge : edge_index[projectLabel])
         {
-            out->addEdge(edge->target, edge->source, projectLabel);
+            out->addEdge(edge.second, edge.first, projectLabel);
         }
 
         return out;
@@ -83,11 +83,12 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::join(std::shared_ptr<SimpleGraph> 
 
     auto out = std::make_shared<SimpleGraph>(left->getNoVertices(), 1);
 
-    for(uint32_t leftSource = 0; leftSource < left->getNoVertices(); leftSource++) {
-        for (const auto &labelTarget : left->getAdjacency(leftSource)) {
-            // try to join the left target with right source
-            for (const auto &rightLabelTarget : right->getAdjacency(labelTarget->target)) {
-                out->addEdge(leftSource, rightLabelTarget->target, 0);
+    for(uint32_t left_source = 0; left_source < left->getNoVertices(); left_source++) {
+        for(auto left_source_neighbours = left->begin(left_source); left_source_neighbours != left->end(left_source); left_source_neighbours++) {
+            uint32_t left_target = left_source_neighbours->first.second;
+            for(auto right_source_neighbours = right->begin(left_target); right_source_neighbours != right->end(left_target); right_source_neighbours++) {
+                uint32_t right_target = right_source_neighbours->first.second;
+                out->addEdge(left_source, right_target, 0);
             }
         }
     }

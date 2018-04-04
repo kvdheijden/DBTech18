@@ -152,32 +152,36 @@ void SimpleEstimator::calculatePathProbabilities(dimArr<float, S>& labelProbabil
 template <>
 void SimpleEstimator::countPaths<1>(dimArr<uint32_t, 1>& path, uint32_t node) {
     // Go through all outgoing transitions from this node.
-    for ( const auto &t : graph->getAdjacency(node) ) {
-        uint32_t label = t->label;
-        path[label]++;
+    for ( auto t = graph->begin(node); t != graph->end(node); t++ ) {
+        for( uint32_t label : t->second ) {
+            path[label]++;
+        }
     }
 
     // Go through all incoming transitions from this node.
-    for ( const auto &t : graph->getReverseAdjacency(node) ) {
-        uint32_t label = t->label;
-        path[L+label]++;
+    for ( auto t = graph->rbegin(node); t != graph->rend(node); t++ ) {
+        for( uint32_t label : t->second ) {
+            path[L + label]++;
+        }
     }
 }
 
 template<size_t S>
 void SimpleEstimator::countPaths(dimArr<uint32_t, S> &path, uint32_t node) {
     // Go through all outgoing transitions from this node.
-    for ( const auto &t : graph->getAdjacency(node) ) {
-        uint32_t label = t->label;
-        countPaths(path[label].first, t->target);
-        path[label].second++;
+    for ( auto t = graph->begin(node); t != graph->end(node); t++ ) {
+        for (uint32_t label : t->second) {
+            countPaths(path[label].first, t->first.second);
+            path[label].second++;
+        }
     }
 
     // Go through all incoming transitions from this node.
-    for ( const auto &t : graph->getReverseAdjacency(node) ) {
-        uint32_t label = t->label;
-        countPaths(path[L+label].first, t->source);
-        path[L+label].second++;
+    for ( auto t = graph->rbegin(node); t != graph->rend(node); t++ ) {
+        for (uint32_t label : t->second) {
+            countPaths(path[L + label].first, t->first.second);
+            path[L + label].second++;
+        }
     }
 }
 
@@ -205,11 +209,12 @@ void SimpleEstimator::prepareProbability() {
         }
 
         // Go through all transitions from this node.
-        for ( const auto &t : graph->getAdjacency(i) ) {
-            uint32_t label = t->label;
-            if ( !seenLabelForNode[label] ) {
-                nodesWithOutLabel[label]++;
-                seenLabelForNode[label] = true;
+        for ( auto t = graph->begin(i); t != graph->end(i); t++ ) {
+            for (uint32_t label : t->second) {
+                if (!seenLabelForNode[label]) {
+                    nodesWithOutLabel[label]++;
+                    seenLabelForNode[label] = true;
+                }
             }
         }
     }
@@ -223,11 +228,12 @@ void SimpleEstimator::prepareProbability() {
         }
 
         // Go through all transitions to this node.
-        for ( const auto &t : graph->getReverseAdjacency(i) ) {
-            uint32_t label = t->label;
-            if ( !seenLabelForNode[label] ) {
-                nodesWithInLabel[label]++;
-                seenLabelForNode[label] = true;
+        for ( auto t = graph->rbegin(i); t != graph->rend(i); t++ ) {
+            for (uint32_t label : t->second) {
+                if (!seenLabelForNode[label]) {
+                    nodesWithInLabel[label]++;
+                    seenLabelForNode[label] = true;
+                }
             }
         }
     }
@@ -362,11 +368,15 @@ void SimpleEstimator::prepareBruteForce() {
     }
 
     // Fill summaries
-    for (size_t node = 0; node < graph->getNoVertices(); node++) {
-        summary[node].insert(summary[node].end(), graph->getVertex(node)->outgoing().begin(), graph->getVertex(node)->outgoing().end());
+    for (uint32_t node = 0; node < graph->getNoVertices(); node++) {
+        for(auto i = graph->begin(node); i != graph->end(node); i++) {
+            summary[node].push_back(i->first);
+        }
     }
-    for (size_t node = 0; node < graph->getNoVertices(); node++) {
-        r_summary[node].insert(r_summary[node].end(), graph->getVertex(node)->incoming().begin(), graph->getVertex(node)->incoming().end());
+    for (uint32_t node = 0; node < graph->getNoVertices(); node++) {
+        for(auto i = graph->rbegin(node); i != graph->rend(node); i++) {
+            r_summary[node].push_back(i->first);
+        }
     }
 }
 

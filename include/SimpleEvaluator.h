@@ -24,7 +24,7 @@ class SimpleEvaluator : public Evaluator {
 // CACHING   std::unordered_map<std::string, std::shared_ptr<SimpleGraph>> evaluationCache;
 
     //map<edge, vector<pair<vertex, vector<edge>>>
-    std::unordered_map<uint32_t, std::vector<std::shared_ptr<SimpleEdge>>> edge_index;
+    std::unordered_map<uint32_t, std::vector<std::pair<uint32_t, uint32_t>>> edge_index;
 
 public:
 

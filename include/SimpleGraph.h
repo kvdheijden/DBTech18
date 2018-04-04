@@ -12,24 +12,15 @@
 
 #include "Graph.h"
 
-class SimpleEdge {
-public:
-    SimpleEdge(uint32_t label, uint32_t subject, uint32_t object);
-
-    const uint32_t label;
-
-    const uint32_t source;
-    const uint32_t target;
-};
-
 class SimpleGraph : public Graph {
 private:
     uint32_t L;
     uint32_t V;
     uint32_t E;
 
-    std::unordered_map<uint32_t, std::vector<std::shared_ptr<SimpleEdge>>> adj;
-    std::unordered_map<uint32_t, std::vector<std::shared_ptr<SimpleEdge>>> r_adj;
+    typedef std::map<std::pair<uint32_t, uint32_t>, std::vector<uint32_t>> adjacency_matrix;
+    adjacency_matrix adj;
+    adjacency_matrix r_adj;
 
     void setNoVertices(uint32_t v);
 
@@ -59,8 +50,10 @@ public:
 
     void readFromContiguousFile(const std::string &fileName) override;
 
-    std::vector<std::shared_ptr<SimpleEdge>>& getAdjacency(uint32_t n);
-    std::vector<std::shared_ptr<SimpleEdge>>& getReverseAdjacency(uint32_t n);
+    adjacency_matrix::const_iterator begin(uint32_t n) const;
+    adjacency_matrix::const_iterator end(uint32_t n) const;
+    adjacency_matrix::const_iterator rbegin(uint32_t n) const;
+    adjacency_matrix::const_iterator rend(uint32_t n) const;
 };
 
 #endif //QS_SIMPLEGRAPH_H
