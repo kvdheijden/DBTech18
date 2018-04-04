@@ -64,29 +64,6 @@ cardStat SimpleEstimator::estimate(RPQTree *q) {
 #endif
 }
 
-// Used in the evaluator, so needs to be outside preprocessor blocks.
-void SimpleEstimator::convertQuery(RPQTree *q, std::vector<uint32_t> &query) {
-    // First go to left leaf. If there is any useful data, append it to the query. Then go to right leaf.
-
-    if (q == nullptr) {
-        return;
-    }
-
-    convertQuery(q->left, query);
-
-    std::string rootLabel = q->data;
-    if ( rootLabel != "/" ) {
-        unsigned int rootLabelInt = (unsigned int)std::stoul(rootLabel);
-        if (rootLabel[rootLabel.size()-1] == '+') {
-            query.push_back(rootLabelInt);
-        } else {
-            query.push_back(rootLabelInt + L);
-        }
-    }
-
-    convertQuery(q->right, query);
-}
-
 #if ESTIMATE_METHOD == PATH_PROBABILITY
 ////////////////////////
 /// PATH PROBABILITY ///
@@ -127,8 +104,9 @@ float SimpleEstimator::calcProb(std::vector<uint32_t> query, const dimArr<float,
     float prob = calcProbRecursive(query, probabilities);
 
     while (query.size() > D) {
+        uint32_t first = query[0];
         query.erase(query.begin());
-        prob *= (calcProbRecursive(query, probabilities) / calcProbRecursive(std::vector<uint32_t>(query.begin(), query.begin() + D-1), probabilities));
+        prob *= (calcProbRecursive(query, probabilities) / calcProbRecursive(query, probabilities[first].first));
     }
 
     return prob;
@@ -153,14 +131,14 @@ template <>
 void SimpleEstimator::countPaths<1>(dimArr<uint32_t, 1>& path, uint32_t node) {
     // Go through all outgoing transitions from this node.
     for ( auto t = graph->begin(node); t != graph->end(node); t++ ) {
-        for( uint32_t label : t->second ) {
+        for(uint32_t label : t->second) {
             path[label]++;
         }
     }
 
     // Go through all incoming transitions from this node.
     for ( auto t = graph->rbegin(node); t != graph->rend(node); t++ ) {
-        for( uint32_t label : t->second ) {
+        for(uint32_t label : t->second) {
             path[L + label]++;
         }
     }
@@ -168,9 +146,9 @@ void SimpleEstimator::countPaths<1>(dimArr<uint32_t, 1>& path, uint32_t node) {
 
 template<size_t S>
 void SimpleEstimator::countPaths(dimArr<uint32_t, S> &path, uint32_t node) {
-    // Go through all outgoing transitions from this node.
+    // Go through all outgoing transitions from this node
     for ( auto t = graph->begin(node); t != graph->end(node); t++ ) {
-        for (uint32_t label : t->second) {
+        for(uint32_t label : t->second) {
             countPaths(path[label].first, t->first.second);
             path[label].second++;
         }
@@ -178,7 +156,7 @@ void SimpleEstimator::countPaths(dimArr<uint32_t, S> &path, uint32_t node) {
 
     // Go through all incoming transitions from this node.
     for ( auto t = graph->rbegin(node); t != graph->rend(node); t++ ) {
-        for (uint32_t label : t->second) {
+        for(uint32_t label : t->second) {
             countPaths(path[L + label].first, t->first.second);
             path[L + label].second++;
         }
@@ -193,7 +171,6 @@ void SimpleEstimator::prepareProbability() {
 
     // Go through all nodes and count the transition labels and number of nodes with specific outgoing transitions.
     for (uint32_t i = 0; i < N; i++) {
-//        std::cout << std::endl << "Progress: " << i << "/" << N;
         countPaths(labels, i);
     }
 
@@ -201,39 +178,35 @@ void SimpleEstimator::prepareProbability() {
     std::vector<bool> seenLabelForNode(L, false);
 
     // Go through all nodes and count the transition labels and number of nodes with specific outgoing transitions.
-    for ( uint32_t i = 0; i < graph->getNoVertices(); i++ ) {
+    for ( const auto &n : graph->adj ) {
 
         // Reset flags for which labels have already been seen for this node.
-        for (auto &&b : seenLabelForNode) {
-            b = false;
+        for (auto &&i : seenLabelForNode) {
+            i = false;
         }
 
         // Go through all transitions from this node.
-        for ( auto t = graph->begin(i); t != graph->end(i); t++ ) {
-            for (uint32_t label : t->second) {
-                if (!seenLabelForNode[label]) {
-                    nodesWithOutLabel[label]++;
-                    seenLabelForNode[label] = true;
-                }
+        for ( uint32_t label : n.second ) {
+            if ( !seenLabelForNode[label] ) {
+                nodesWithOutLabel[label]++;
+                seenLabelForNode[label] = true;
             }
         }
     }
 
     // Go through all nodes and count the number of nodes with specific incoming transitions.
-    for ( uint32_t i = 0; i < graph->getNoVertices(); i++ ) {
+    for ( const auto &n : graph->r_adj ) {
 
         // Reset flags for which labels have already been seen for this node.
-        for (auto &&b : seenLabelForNode) {
-            b = false;
+        for (auto &&i : seenLabelForNode) {
+            i = false;
         }
 
         // Go through all transitions to this node.
-        for ( auto t = graph->rbegin(i); t != graph->rend(i); t++ ) {
-            for (uint32_t label : t->second) {
-                if (!seenLabelForNode[label]) {
-                    nodesWithInLabel[label]++;
-                    seenLabelForNode[label] = true;
-                }
+        for ( uint32_t label : n.second ) {
+            if ( !seenLabelForNode[label] ) {
+                nodesWithInLabel[label]++;
+                seenLabelForNode[label] = true;
             }
         }
     }
@@ -311,6 +284,28 @@ cardStat SimpleEstimator::estimateProbability(RPQTree *q) {
     return cardStat {0, paths, 0};
 }
 
+void SimpleEstimator::convertQuery(RPQTree *q, std::vector<uint32_t> &query) {
+    // First go to left leaf. If there is any useful data, append it to the query. Then go to right leaf.
+
+    if (q == nullptr) {
+        return;
+    }
+
+    convertQuery(q->left, query);
+
+    std::string rootLabel = q->data;
+    if ( rootLabel != "/" ) {
+        unsigned int rootLabelInt = std::stoul(rootLabel);
+        if (rootLabel[rootLabel.size()-1] == '+') {
+            query.push_back(rootLabelInt);
+        } else {
+            query.push_back(rootLabelInt + L);
+        }
+    }
+
+    convertQuery(q->right, query);
+}
+
 #elif ESTIMATE_METHOD == SAMPLING
 ////////////////
 /// SAMPLING ///
@@ -368,14 +363,19 @@ void SimpleEstimator::prepareBruteForce() {
     }
 
     // Fill summaries
-    for (uint32_t node = 0; node < graph->getNoVertices(); node++) {
-        for(auto i = graph->begin(node); i != graph->end(node); i++) {
-            summary[node].push_back(i->first);
+    for (uint32_t node = 0; node < graph->adj.size(); node++) {
+        for( auto it = graph->begin(node); it != graph->end(node); it++) {
+            for(uint32_t label : it->second) {
+                summary[node].emplace_back(label, it->first.second);
+            }
         }
     }
-    for (uint32_t node = 0; node < graph->getNoVertices(); node++) {
-        for(auto i = graph->rbegin(node); i != graph->rend(node); i++) {
-            r_summary[node].push_back(i->first);
+
+    for (uint32_t node = 0; node < graph->adj.size(); node++) {
+        for( auto it = graph->rbegin(node); it != graph->rend(node); it++) {
+            for(uint32_t label : it->second) {
+                r_summary[node].emplace_back(label, it->first.second);
+            }
         }
     }
 }

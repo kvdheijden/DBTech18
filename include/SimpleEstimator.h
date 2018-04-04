@@ -10,10 +10,8 @@
 #define BRUTE_FORCE         (0x03)
 
 #ifndef ESTIMATE_METHOD
-#define ESTIMATE_METHOD     PATH_PROBABILITY
+#define ESTIMATE_METHOD     SAMPLING
 #endif
-
-#include <memory>
 
 #if ESTIMATE_METHOD == PATH_PROBABILITY
 #include <vector>
@@ -67,7 +65,7 @@ private:
 #endif
 
     // Number of nodes and number of labels.
-    public: const uint32_t N, L;
+    const uint32_t N, L;
 
     // Calculate in and output nodes
     static const bool calculate_in_and_out = false;
@@ -79,13 +77,11 @@ public:
     void prepare() override;
     cardStat estimate(RPQTree *q) override;
 
-    // Also used in evaluator, so outside of preprocessor block.
-    void convertQuery(RPQTree *q, std::vector<uint32_t> &query);
-
 #if ESTIMATE_METHOD == PATH_PROBABILITY
     // Path probability:
     void prepareProbability();
     cardStat estimateProbability(RPQTree *q);
+    void convertQuery(RPQTree *q, std::vector<uint32_t> &query);
     template <size_t S> float calcProbRecursive(const std::vector<uint32_t>& query, const dimArr<float, S>& probabilities);
     template <size_t S> float calcProb(std::vector<uint32_t> query, const dimArr<float, S>& probabilities);
     template <size_t S> void countPaths(dimArr<uint32_t, S> &path, uint32_t node);
