@@ -26,7 +26,7 @@ void dimArr<T, N>::init(size_t n, T val) {
 ////////////////////////////////
 /// Estimator Implementation ///
 ////////////////////////////////
-EstimatorImpl::EstimatorImpl(std::shared_ptr<SimpleGraph> g)
+EstimatorImpl::EstimatorImpl(std::shared_ptr<SimpleGraph> &g)
         : N(g->getNoVertices()), L(g->getNoLabels())
 {
     // works only with SimpleGraph
@@ -52,7 +52,7 @@ void EstimatorImpl::query_to_vec(RPQTree * query, std::vector<uint32_t>& vec) {
 ////////////////////////
 /// Simple Estimator ///
 ////////////////////////
-SimpleEstimator::SimpleEstimator(std::shared_ptr<SimpleGraph> g)
+SimpleEstimator::SimpleEstimator(std::shared_ptr<SimpleGraph> &g)
 {
     if(estimate_method == PATH_PROBABILITY) {
         impl = new PathProbEstimator(g);
@@ -80,7 +80,7 @@ SimpleEstimator::~SimpleEstimator() {
 ////////////////////////
 /// Path Probability ///
 ////////////////////////
-PathProbEstimator::PathProbEstimator(std::shared_ptr<SimpleGraph> g)
+PathProbEstimator::PathProbEstimator(std::shared_ptr<SimpleGraph> &g)
         : EstimatorImpl(g), nodesWithOutLabel(g->getNoLabels(), 0), nodesWithInLabel(g->getNoLabels(), 0)
 {
     pathProbabilities.init(2 * L, 0.0f);
@@ -101,8 +101,7 @@ void PathProbEstimator::prepare() {
     std::vector<bool> seenLabelForNode(L, false);
 
     // Go through all nodes and count the transition labels and number of nodes with specific outgoing transitions.
-    for ( uint32_t node = 0; node < graph->getNoVertices(); node++ ) {
-        auto n = graph->forward(node);
+    for ( const auto& n : graph->adj ) {
 
         // Reset flags for which labels have already been seen for this node.
         for (auto &&i : seenLabelForNode) {
@@ -110,7 +109,7 @@ void PathProbEstimator::prepare() {
         }
 
         // Go through all transitions from this node.
-        for ( const std::pair<uint32_t,uint32_t> &t : n ) {
+        for ( const auto& t : n ) {
             uint32_t label = t.first;
             if ( !seenLabelForNode[label] ) {
                 nodesWithOutLabel[label]++;
@@ -120,8 +119,7 @@ void PathProbEstimator::prepare() {
     }
 
     // Go through all nodes and count the number of nodes with specific incoming transitions.
-    for ( uint32_t node = 0; node < graph->getNoVertices(); node++ ) {
-        auto n = graph->reverse(node);
+    for ( const auto& n : graph->reverse_adj ) {
 
         // Reset flags for which labels have already been seen for this node.
         for (auto &&i : seenLabelForNode) {
@@ -129,7 +127,7 @@ void PathProbEstimator::prepare() {
         }
 
         // Go through all transitions to this node.
-        for ( const std::pair<uint32_t,uint32_t> &t : n ) {
+        for ( const auto& t : n ) {
             uint32_t label = t.first;
             if ( !seenLabelForNode[label] ) {
                 nodesWithInLabel[label]++;
@@ -272,13 +270,13 @@ void PathProbEstimator::calculatePathProbabilities(dimArr<float, S>& labelProbab
 template <>
 void PathProbEstimator::countPaths<1>(dimArr<uint32_t, 1>& path, uint32_t node) {
     // Go through all outgoing transitions from this node.
-    for ( const auto& t : graph->forward(node) ) {
+    for ( const auto& t : graph->adj[node] ) {
         uint32_t label = t.first;
         path[label]++;
     }
 
     // Go through all incoming transitions from this node.
-    for ( const auto& t : graph->reverse(node) ) {
+    for ( const auto& t : graph->reverse_adj[node] ) {
         uint32_t label = t.first;
         path[L+label]++;
     }
@@ -287,14 +285,14 @@ void PathProbEstimator::countPaths<1>(dimArr<uint32_t, 1>& path, uint32_t node) 
 template<size_t S>
 void PathProbEstimator::countPaths(dimArr<uint32_t, S> &path, uint32_t node) {
     // Go through all outgoing transitions from this node.
-    for ( const auto& t : graph->forward(node) ) {
+    for ( const auto& t : graph->adj[node] ) {
         uint32_t label = t.first;
         countPaths(path[label].first, t.second);
         path[label].second++;
     }
 
     // Go through all incoming transitions from this node.
-    for ( const auto& t : graph->reverse(node) ) {
+    for ( const auto& t : graph->reverse_adj[node] ) {
         uint32_t label = t.first;
         countPaths(path[L+label].first, t.second);
         path[L+label].second++;
@@ -304,7 +302,7 @@ void PathProbEstimator::countPaths(dimArr<uint32_t, S> &path, uint32_t node) {
 ///////////////////
 /// Brute Force ///
 ///////////////////
-BruteForceEstimator::BruteForceEstimator(std::shared_ptr<SimpleGraph> g)
+BruteForceEstimator::BruteForceEstimator(std::shared_ptr<SimpleGraph> &g)
         : EstimatorImpl(g), summary(g->getNoVertices()), r_summary(g->getNoVertices())
 {
 
@@ -319,11 +317,11 @@ void BruteForceEstimator::prepare() {
 
     // Fill summaries
     for (size_t node = 0; node < graph->getNoVertices(); node++) {
-        std::vector<std::pair<uint32_t, uint32_t>>& adj = graph->forward(node);
+        std::vector<std::pair<uint32_t, uint32_t>>& adj = graph->adj[node];
         summary[node].insert(summary[node].end(), adj.begin(), adj.end());
     }
     for (size_t node = 0; node < graph->getNoVertices(); node++) {
-        std::vector<std::pair<uint32_t, uint32_t>>& reverse_adj = graph->reverse(node);
+        std::vector<std::pair<uint32_t, uint32_t>>& reverse_adj = graph->reverse_adj[node];
         r_summary[node].insert(r_summary[node].end(), reverse_adj.begin(), reverse_adj.end());
     }
 }
@@ -405,7 +403,7 @@ std::vector<std::string> BruteForceEstimator::parseQuery(RPQTree *q) {
 ////////////////
 /// Sampling ///
 ////////////////
-SamplingEstimator::SamplingEstimator(std::shared_ptr<SimpleGraph> g)
+SamplingEstimator::SamplingEstimator(std::shared_ptr<SimpleGraph> &g)
         : BruteForceEstimator(g)
 {
 

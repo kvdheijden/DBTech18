@@ -35,7 +35,7 @@ protected:
     // Calculate in and output nodes
     static const bool calculate_in_and_out = false;
 public:
-    explicit EstimatorImpl(std::shared_ptr<SimpleGraph> g);
+    explicit EstimatorImpl(std::shared_ptr<SimpleGraph> &g);
 
     virtual ~EstimatorImpl() = default;
     void query_to_vec(RPQTree * query, std::vector<uint32_t>& vec);
@@ -54,7 +54,7 @@ protected:
     } estimate_method = PATH_PROBABILITY;
 
 public:
-    explicit SimpleEstimator(std::shared_ptr<SimpleGraph> g);
+    explicit SimpleEstimator(std::shared_ptr<SimpleGraph> &g);
 
     virtual ~SimpleEstimator();
 
@@ -77,7 +77,7 @@ protected:
     std::vector<uint32_t> nodesWithInLabel;
     dimArr<float, D> pathProbabilities;
 public:
-    explicit PathProbEstimator(std::shared_ptr<SimpleGraph> g);
+    explicit PathProbEstimator(std::shared_ptr<SimpleGraph> &g);
     ~PathProbEstimator() override = default;
 
     void prepare() override;
@@ -101,7 +101,7 @@ protected:
     std::set<uint32_t> unique_end_vertices;
     std::set<uint32_t> unique_end_vertices_per_vertex;
 public:
-    explicit BruteForceEstimator(std::shared_ptr<SimpleGraph> g);
+    explicit BruteForceEstimator(std::shared_ptr<SimpleGraph> &g);
     ~BruteForceEstimator() override = default;
 
     void prepare() override;
@@ -127,7 +127,7 @@ protected:
     // RNG initialization
     std::random_device r;
 public:
-    explicit SamplingEstimator(std::shared_ptr<SimpleGraph> g);
+    explicit SamplingEstimator(std::shared_ptr<SimpleGraph> &g);
     ~SamplingEstimator() override = default;
 
     void prepare() override;

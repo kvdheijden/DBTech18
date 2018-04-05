@@ -110,27 +110,3 @@ void SimpleGraph::readFromContiguousFile(const std::string &fileName) {
     graphFile.close();
 
 }
-
-int SimpleGraph::outDegree(uint32_t n) const {
-    return adj[n].size();
-}
-
-int SimpleGraph::inDegree(uint32_t n) const {
-    return reverse_adj[n].size();
-}
-
-std::vector<std::pair<uint32_t, uint32_t>> &SimpleGraph::forward(uint32_t n) {
-    return adj[n];
-}
-
-std::vector<std::pair<uint32_t, uint32_t>> &SimpleGraph::reverse(uint32_t n) {
-    return reverse_adj[n];
-}
-
-uint32_t SimpleGraph::getLabel(const std::pair<uint32_t, uint32_t> &labelTarget) {
-    return labelTarget.first;
-}
-
-uint32_t SimpleGraph::getTarget(const std::pair<uint32_t, uint32_t> &labelTarget) {
-    return labelTarget.second;
-}
