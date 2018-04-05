@@ -86,6 +86,96 @@ PathProbEstimator::PathProbEstimator(std::shared_ptr<SimpleGraph> &g)
     pathProbabilities.init(2 * L, 0.0f);
 }
 
+template<>
+float PathProbEstimator::calcProbRecursive<1>(const std::vector<uint32_t> &query, const dimArr<float, 1>& probabilities) {
+    if(query.empty()) {
+        return 1.0f;
+    }
+
+    return probabilities[query[0]];
+}
+
+template<size_t S>
+float PathProbEstimator::calcProbRecursive(const std::vector<uint32_t> &query, const dimArr<float, S>& probabilities) {
+    if(query.empty()) {
+        return 1.0f;
+    }
+    if(query.size() == 1) {
+        return probabilities[query[0]].second;
+    }
+
+    return calcProbRecursive(std::vector<uint32_t>(query.begin() + 1, query.end()), probabilities[query[0]].first);
+}
+
+template <>
+float PathProbEstimator::calcProb<1>(std::vector<uint32_t> query, const dimArr<float, 1>& probabilities) {
+    float prob = 1.0f;
+    for(const uint32_t& i : query) {
+        prob *= probabilities[i];
+    }
+    return prob;
+}
+
+template <size_t S>
+float PathProbEstimator::calcProb(std::vector<uint32_t> query, const dimArr<float, S>& probabilities) {
+    float prob = calcProbRecursive(query, probabilities);
+
+    while (query.size() > D) {
+        uint32_t first = query[0];
+        query.erase(query.begin());
+        prob *= (calcProbRecursive(query, probabilities) / calcProbRecursive(query, probabilities[first].first));
+    }
+
+    return prob;
+}
+
+template <>
+void PathProbEstimator::calculatePathProbabilities<1>(dimArr<float, 1>& labelProbabilities, const dimArr<uint32_t, 1>& labelCounts) {
+    for(int i = 0; i < 2 * L; i++) {
+        labelProbabilities[i] = ((float)labelCounts[i])/((float)N);
+    }
+}
+
+template <size_t S>
+void PathProbEstimator::calculatePathProbabilities(dimArr<float, S>& labelProbabilities, const dimArr<uint32_t, S>& labelCounts) {
+    for(int i = 0; i < 2 * L; i++) {
+        labelProbabilities[i].second = ((float)labelCounts[i].second)/((float)N);
+        calculatePathProbabilities(labelProbabilities[i].first, labelCounts[i].first);
+    }
+}
+
+template <>
+void PathProbEstimator::countPaths<1>(dimArr<uint32_t, 1>& path, uint32_t node) {
+    // Go through all outgoing transitions from this node.
+    for ( const auto& t : graph->adj[node] ) {
+        uint32_t label = t.first;
+        path[label]++;
+    }
+
+    // Go through all incoming transitions from this node.
+    for ( const auto& t : graph->reverse_adj[node] ) {
+        uint32_t label = t.first;
+        path[L+label]++;
+    }
+}
+
+template<size_t S>
+void PathProbEstimator::countPaths(dimArr<uint32_t, S> &path, uint32_t node) {
+    // Go through all outgoing transitions from this node.
+    for ( const auto& t : graph->adj[node] ) {
+        uint32_t label = t.first;
+        countPaths(path[label].first, t.second);
+        path[label].second++;
+    }
+
+    // Go through all incoming transitions from this node.
+    for ( const auto& t : graph->reverse_adj[node] ) {
+        uint32_t label = t.first;
+        countPaths(path[L+label].first, t.second);
+        path[L+label].second++;
+    }
+}
+
 void PathProbEstimator::prepare() {
 
     // Total number of times a specific set of (at most three) labels occurs.
@@ -207,96 +297,6 @@ cardStat PathProbEstimator::estimate(RPQTree *q) {
         return cardStat {startNodes, paths, endNodes};
     }
     return cardStat {0, paths, 0};
-}
-
-template<>
-float PathProbEstimator::calcProbRecursive<1>(const std::vector<uint32_t> &query, const dimArr<float, 1>& probabilities) {
-    if(query.empty()) {
-        return 1.0f;
-    }
-
-    return probabilities[query[0]];
-}
-
-template<size_t S>
-float PathProbEstimator::calcProbRecursive(const std::vector<uint32_t> &query, const dimArr<float, S>& probabilities) {
-    if(query.empty()) {
-        return 1.0f;
-    }
-    if(query.size() == 1) {
-        return probabilities[query[0]].second;
-    }
-
-    return calcProbRecursive(std::vector<uint32_t>(query.begin() + 1, query.end()), probabilities[query[0]].first);
-}
-
-template <>
-float PathProbEstimator::calcProb<1>(std::vector<uint32_t> query, const dimArr<float, 1>& probabilities) {
-    float prob = 1.0f;
-    for(const uint32_t& i : query) {
-        prob *= probabilities[i];
-    }
-    return prob;
-}
-
-template <size_t S>
-float PathProbEstimator::calcProb(std::vector<uint32_t> query, const dimArr<float, S>& probabilities) {
-    float prob = calcProbRecursive(query, probabilities);
-
-    while (query.size() > D) {
-        uint32_t first = query[0];
-        query.erase(query.begin());
-        prob *= (calcProbRecursive(query, probabilities) / calcProbRecursive(query, probabilities[first].first));
-    }
-
-    return prob;
-}
-
-template <>
-void PathProbEstimator::calculatePathProbabilities<1>(dimArr<float, 1>& labelProbabilities, const dimArr<uint32_t, 1>& labelCounts) {
-    for(int i = 0; i < 2 * L; i++) {
-        labelProbabilities[i] = ((float)labelCounts[i])/((float)N);
-    }
-}
-
-template <size_t S>
-void PathProbEstimator::calculatePathProbabilities(dimArr<float, S>& labelProbabilities, const dimArr<uint32_t, S>& labelCounts) {
-    for(int i = 0; i < 2 * L; i++) {
-        labelProbabilities[i].second = ((float)labelCounts[i].second)/((float)N);
-        calculatePathProbabilities(labelProbabilities[i].first, labelCounts[i].first);
-    }
-}
-
-template <>
-void PathProbEstimator::countPaths<1>(dimArr<uint32_t, 1>& path, uint32_t node) {
-    // Go through all outgoing transitions from this node.
-    for ( const auto& t : graph->adj[node] ) {
-        uint32_t label = t.first;
-        path[label]++;
-    }
-
-    // Go through all incoming transitions from this node.
-    for ( const auto& t : graph->reverse_adj[node] ) {
-        uint32_t label = t.first;
-        path[L+label]++;
-    }
-}
-
-template<size_t S>
-void PathProbEstimator::countPaths(dimArr<uint32_t, S> &path, uint32_t node) {
-    // Go through all outgoing transitions from this node.
-    for ( const auto& t : graph->adj[node] ) {
-        uint32_t label = t.first;
-        countPaths(path[label].first, t.second);
-        path[label].second++;
-    }
-
-    // Go through all incoming transitions from this node.
-    for ( const auto& t : graph->reverse_adj[node] ) {
-        uint32_t label = t.first;
-        countPaths(path[L+label].first, t.second);
-        path[L+label].second++;
-    }
 }
 
 ///////////////////

@@ -70,7 +70,7 @@ public:
 class PathProbEstimator : public EstimatorImpl {
 protected:
     // Number of dimensions in pathProb.
-    static const uint32_t D = 3;
+    static const uint32_t D = 1;
 
     // Path probability:
     std::vector<uint32_t> nodesWithOutLabel;

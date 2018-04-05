@@ -4,8 +4,9 @@
 
 #include "SimpleGraph.h"
 
-SimpleGraph::SimpleGraph(uint32_t n)   {
-    setNoVertices(n);
+SimpleGraph::SimpleGraph(uint32_t n_V, uint32_t n_L)   {
+    setNoVertices(n_V);
+    setNoLabels(n_L);
 }
 
 uint32_t SimpleGraph::getNoVertices() const {
@@ -14,8 +15,8 @@ uint32_t SimpleGraph::getNoVertices() const {
 
 void SimpleGraph::setNoVertices(uint32_t n) {
     V = n;
-    adj.resize(V);
-    reverse_adj.resize(V);
+    adj.resize(n);
+    reverse_adj.resize(n);
 }
 
 uint32_t SimpleGraph::getNoEdges() const {

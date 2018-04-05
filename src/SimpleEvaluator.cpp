@@ -43,8 +43,7 @@ cardStat SimpleEvaluator::computeStats(std::shared_ptr<SimpleGraph> &g) {
 
 std::shared_ptr<SimpleGraph> project(uint32_t projectLabel, bool inverse, std::shared_ptr<SimpleGraph> &in) {
 
-    auto out = std::make_shared<SimpleGraph>(in->getNoVertices());
-    out->setNoLabels(in->getNoLabels());
+    auto out = std::make_shared<SimpleGraph>(in->getNoVertices(), in->getNoLabels());
 
     if(!inverse) {
         // going forward
@@ -77,8 +76,7 @@ std::shared_ptr<SimpleGraph> project(uint32_t projectLabel, bool inverse, std::s
 
 std::shared_ptr<SimpleGraph> join(std::shared_ptr<SimpleGraph> &left, std::shared_ptr<SimpleGraph> &right) {
 
-    auto out = std::make_shared<SimpleGraph>(left->getNoVertices());
-    out->setNoLabels(1);
+    auto out = std::make_shared<SimpleGraph>(left->getNoVertices(), 1);
 
     for(uint32_t leftSource = 0; leftSource < left->getNoVertices(); leftSource++) {
         for (auto labelTarget : left->adj[leftSource]) {
