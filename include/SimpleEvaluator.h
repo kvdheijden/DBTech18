@@ -13,7 +13,43 @@
 #include "Evaluator.h"
 #include "Graph.h"
 
+class SimpleEvaluator;
+
+class QueryPlan {
+private:
+    const float c;
+protected:
+    explicit QueryPlan(float cost) : c(cost) {};
+public:
+    virtual std::shared_ptr<SimpleGraph> execute() = 0;
+    virtual float cost() {
+        return c;
+    };
+};
+
+class ProjectionAlgorithm : public QueryPlan {
+private:
+    std::string label;
+    std::shared_ptr<SimpleGraph> graph;
+    std::shared_ptr<SimpleGraph> (*project)(uint32_t projectLabel, bool inverse, std::shared_ptr<SimpleGraph> &in);
+public:
+    ProjectionAlgorithm(float cost, const std::string& query_string, std::shared_ptr<SimpleGraph> graph, std::shared_ptr<SimpleGraph> (*project)(uint32_t, bool, std::shared_ptr<SimpleGraph> &));
+    std::shared_ptr<SimpleGraph> execute() override;
+};
+
+class JoiningAlgorithm : public QueryPlan {
+private:
+    std::shared_ptr<QueryPlan> P1;
+    std::shared_ptr<QueryPlan> P2;
+    std::shared_ptr<SimpleGraph> (*join)(std::shared_ptr<SimpleGraph> &left, std::shared_ptr<SimpleGraph> &right);
+public:
+    JoiningAlgorithm(float cost, std::shared_ptr<QueryPlan> P1, std::shared_ptr<QueryPlan> P2, std::shared_ptr<SimpleGraph> (*join)(std::shared_ptr<SimpleGraph> &, std::shared_ptr<SimpleGraph> &));
+    std::shared_ptr<SimpleGraph> execute() override;
+};
+
 class SimpleEvaluator : public Evaluator {
+
+    std::map<std::vector<int>, std::shared_ptr<QueryPlan>> best_plan;
 
     std::shared_ptr<SimpleGraph> graph;
     std::shared_ptr<SimpleEstimator> est;
@@ -28,12 +64,13 @@ public:
 
     void attachEstimator(std::shared_ptr<SimpleEstimator> &e);
 
-    std::shared_ptr<SimpleGraph> evaluate_aux(RPQTree *q);
-    static std::shared_ptr<SimpleGraph> project(uint32_t label, bool inverse, std::shared_ptr<SimpleGraph> &g);
-    static std::shared_ptr<SimpleGraph> join(std::shared_ptr<SimpleGraph> &left, std::shared_ptr<SimpleGraph> &right);
-
     static cardStat computeStats(std::shared_ptr<SimpleGraph> &g);
 
+    std::shared_ptr<ProjectionAlgorithm> find_best_projection_algorithm(RPQTree *query);
+    std::shared_ptr<JoiningAlgorithm> find_best_joining_algorithm(std::shared_ptr<QueryPlan> P1, std::shared_ptr<QueryPlan> P2);
+
+    void query_to_vec(RPQTree * query, std::vector<int>& vec);
+    std::shared_ptr<QueryPlan> find_best_plan(const std::vector<int>& S);
 };
 
 

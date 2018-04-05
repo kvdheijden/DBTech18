@@ -15,11 +15,8 @@
 
 class SimpleGraph : public Graph {
 public:
-
-    typedef std::map<std::pair<uint32_t, uint32_t>, std::vector<uint32_t>> adjacency_matrix;
-    adjacency_matrix adj;
-    adjacency_matrix r_adj;
-
+    std::vector<std::vector<std::pair<uint32_t,uint32_t>>> adj;
+    std::vector<std::vector<std::pair<uint32_t,uint32_t>>> reverse_adj; // vertex adjacency list
 protected:
     uint32_t V;
     uint32_t L;
@@ -40,11 +37,6 @@ public:
 
     void setNoVertices(uint32_t n);
     void setNoLabels(uint32_t noLabels);
-
-    adjacency_matrix::const_iterator begin(uint32_t n) const;
-    adjacency_matrix::const_iterator rbegin(uint32_t n) const;
-    adjacency_matrix::const_iterator end(uint32_t n) const;
-    adjacency_matrix::const_iterator rend(uint32_t n) const;
 
 };
 

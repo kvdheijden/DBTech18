@@ -29,20 +29,20 @@ cardStat SimpleEvaluator::computeStats(std::shared_ptr<SimpleGraph> &g) {
 
     cardStat stats {};
 
-    for(uint32_t source = 0; source < g->getNoVertices(); source++) {
-        if(g->begin(source) != g->end(source)) stats.noOut++;
+    for(int source = 0; source < g->getNoVertices(); source++) {
+        if(!g->adj[source].empty()) stats.noOut++;
     }
 
     stats.noPaths = g->getNoDistinctEdges();
 
-    for(uint32_t target = 0; target < g->getNoVertices(); target++) {
-        if(g->rbegin(target) != g->rend(target)) stats.noIn++;
+    for(int target = 0; target < g->getNoVertices(); target++) {
+        if(!g->reverse_adj[target].empty()) stats.noIn++;
     }
 
     return stats;
 }
 
-std::shared_ptr<SimpleGraph> SimpleEvaluator::project(uint32_t projectLabel, bool inverse, std::shared_ptr<SimpleGraph> &in) {
+std::shared_ptr<SimpleGraph> project(uint32_t projectLabel, bool inverse, std::shared_ptr<SimpleGraph> &in) {
 
     auto out = std::make_shared<SimpleGraph>(in->getNoVertices());
     out->setNoLabels(in->getNoLabels());
@@ -50,25 +50,25 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::project(uint32_t projectLabel, boo
     if(!inverse) {
         // going forward
         for(uint32_t source = 0; source < in->getNoVertices(); source++) {
-            for (auto labelTarget = in->begin(source); labelTarget != in->end(source); labelTarget++) {
+            for (auto labelTarget : in->adj[source]) {
 
-                auto target = labelTarget->first.second;
-                auto labels = labelTarget->second;
+                auto label = labelTarget.first;
+                auto target = labelTarget.second;
 
-                if (std::find(labels.begin(), labels.end(), projectLabel) != labels.end())
-                    out->addEdge(source, target, projectLabel);
+                if (label == projectLabel)
+                    out->addEdge(source, target, label);
             }
         }
     } else {
         // going backward
         for(uint32_t source = 0; source < in->getNoVertices(); source++) {
-            for (auto labelTarget = in->rbegin(source); labelTarget != in->rend(source); labelTarget++) {
+            for (auto labelTarget : in->reverse_adj[source]) {
 
-                auto target = labelTarget->first.second;
-                auto labels = labelTarget->second;
+                auto label = labelTarget.first;
+                auto target = labelTarget.second;
 
-                if (std::find(labels.begin(), labels.end(), projectLabel) != labels.end())
-                    out->addEdge(source, target, projectLabel);
+                if (label == projectLabel)
+                    out->addEdge(source, target, label);
             }
         }
     }
@@ -76,19 +76,19 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::project(uint32_t projectLabel, boo
     return out;
 }
 
-std::shared_ptr<SimpleGraph> SimpleEvaluator::join(std::shared_ptr<SimpleGraph> &left, std::shared_ptr<SimpleGraph> &right) {
+std::shared_ptr<SimpleGraph> join(std::shared_ptr<SimpleGraph> &left, std::shared_ptr<SimpleGraph> &right) {
 
     auto out = std::make_shared<SimpleGraph>(left->getNoVertices());
     out->setNoLabels(1);
 
     for(uint32_t leftSource = 0; leftSource < left->getNoVertices(); leftSource++) {
-        for (auto labelTarget = left->begin(leftSource); labelTarget != left->end(leftSource); labelTarget++) {
+        for (auto labelTarget : left->adj[leftSource]) {
 
-            uint32_t leftTarget = labelTarget->first.second;
+            int leftTarget = labelTarget.second;
             // try to join the left target with right source
-            for (auto rightLabelTarget = right->begin(leftTarget); rightLabelTarget != right->end(leftTarget); rightLabelTarget++) {
+            for (auto rightLabelTarget : right->adj[leftTarget]) {
 
-                auto rightTarget = rightLabelTarget->first.second;
+                auto rightTarget = rightLabelTarget.second;
                 out->addEdge(leftSource, rightTarget, 0);
 
             }
@@ -98,49 +98,103 @@ std::shared_ptr<SimpleGraph> SimpleEvaluator::join(std::shared_ptr<SimpleGraph> 
     return out;
 }
 
-std::shared_ptr<SimpleGraph> SimpleEvaluator::evaluate_aux(RPQTree *q) {
+std::shared_ptr<ProjectionAlgorithm> SimpleEvaluator::find_best_projection_algorithm(RPQTree *query) {
+    cardStat result = est->estimate(query);
+    // TODO: Decide which projection algorithm to use
+    return std::make_shared<ProjectionAlgorithm>(result.noPaths, query->data, this->graph, &project);
+}
 
-    // evaluate according to the AST bottom-up
+std::shared_ptr<JoiningAlgorithm> SimpleEvaluator::find_best_joining_algorithm(std::shared_ptr<QueryPlan> P1, std::shared_ptr<QueryPlan> P2) {
+    float cost = P1->cost() + P2->cost() + 1000;
+    return std::make_shared<JoiningAlgorithm>(cost, P1, P2, &join);
+}
 
-    if(q->isLeaf()) {
-        // project out the label in the AST
-        std::regex directLabel (R"((\d+)\+)");
-        std::regex inverseLabel (R"((\d+)\-)");
+constexpr int mask = (1 << ((sizeof(int) * 8) - 1));
 
-        std::smatch matches;
+std::shared_ptr<QueryPlan> SimpleEvaluator::find_best_plan(const std::vector<int>& S) {
+    if(best_plan.find(S) != best_plan.end()) {
+        return best_plan[S];
+    }
 
-        uint32_t label;
-        bool inverse;
+    // Need to calculate best plan
+    if(S.size() == 1) {
+        int v = S[0] & ~mask;
+        std::string query_string = std::to_string(v);
 
-        if(std::regex_search(q->data, matches, directLabel)) {
-            label = (uint32_t) std::stoul(matches[1]);
-            inverse = false;
-        } else if(std::regex_search(q->data, matches, inverseLabel)) {
-            label = (uint32_t) std::stoul(matches[1]);
-            inverse = true;
+        if(S[0] & mask) {
+            query_string += '-';
         } else {
-            std::cerr << "Label parsing failed!" << std::endl;
-            return nullptr;
+            query_string += '+';
         }
+        RPQTree query(query_string, nullptr, nullptr);
 
-        return SimpleEvaluator::project(label, inverse, graph);
+        std::shared_ptr<ProjectionAlgorithm> A = find_best_projection_algorithm(&query);
+        best_plan[S] = A;
+    } else {
+        for(auto it = S.begin() + 1; it < S.end(); it++) {
+            std::vector<int> S1(S.begin(), it);
+            std::vector<int> S2(it, S.end());
+            std::shared_ptr<QueryPlan> P1 = find_best_plan(S1);
+            std::shared_ptr<QueryPlan> P2 = find_best_plan(S2);
+            std::shared_ptr<JoiningAlgorithm> A = find_best_joining_algorithm(P1, P2);
+
+            if(best_plan.find(S) == best_plan.end()) {
+                best_plan[S] = A;
+                continue;
+            }
+
+            if(A->cost() < best_plan[S]->cost()) {
+                best_plan[S] = A;
+            }
+        }
     }
+    return best_plan[S];
+}
 
-    if(q->isConcat()) {
-
-        // evaluate the children
-        auto leftGraph = SimpleEvaluator::evaluate_aux(q->left);
-        auto rightGraph = SimpleEvaluator::evaluate_aux(q->right);
-
-        // join left with right
-        return SimpleEvaluator::join(leftGraph, rightGraph);
-
+void SimpleEvaluator::query_to_vec(RPQTree * query, std::vector<int>& vec) {
+    if(query->isLeaf()) {
+        const char *c_str = query->data.c_str();
+        char *end;
+        int label = std::strtol(c_str, &end, 10);
+        if(*end == '-')
+            label |= mask;
+        vec.push_back(label);
+    } else if (query->isUnary()) {
+        query_to_vec(query->left, vec);
+    } else {
+        query_to_vec(query->left, vec);
+        query_to_vec(query->right, vec);
     }
-
-    return nullptr;
 }
 
 cardStat SimpleEvaluator::evaluate(RPQTree *query) {
-    auto res = evaluate_aux(query);
+    std::vector<int> flat_query;
+    query_to_vec(query, flat_query);
+    std::shared_ptr<QueryPlan> best_plan = find_best_plan(flat_query);
+
+    std::shared_ptr<SimpleGraph> res = best_plan->execute();
+
     return SimpleEvaluator::computeStats(res);
+}
+
+ProjectionAlgorithm::ProjectionAlgorithm(float cost, const std::string &query_string, std::shared_ptr<SimpleGraph> graph,
+                                         std::shared_ptr<SimpleGraph> (*project)(uint32_t, bool, std::shared_ptr<SimpleGraph> &))
+        : QueryPlan(cost), label(query_string), graph(std::move(graph)), project(project) {}
+
+std::shared_ptr<SimpleGraph> ProjectionAlgorithm::execute() {
+    const char *c_str = label.c_str();
+    char *end;
+    uint32_t projectLabel = std::strtoul(c_str, &end, 10);
+
+    return project(projectLabel, *end == '-', graph);
+}
+
+JoiningAlgorithm::JoiningAlgorithm(float cost, std::shared_ptr<QueryPlan> P1, std::shared_ptr<QueryPlan> P2,
+                                   std::shared_ptr<SimpleGraph> (*join)(std::shared_ptr<SimpleGraph> &, std::shared_ptr<SimpleGraph> &))
+        : QueryPlan(cost), P1(std::move(P1)), P2(std::move(P2)), join(join) {}
+
+std::shared_ptr<SimpleGraph> JoiningAlgorithm::execute() {
+    std::shared_ptr<SimpleGraph> left = P1->execute();
+    std::shared_ptr<SimpleGraph> right = P2->execute();
+    return join(left, right);
 }

@@ -24,7 +24,7 @@ void dimArr<T, N>::init(size_t n, T val) {
 
 SimpleEstimator::SimpleEstimator(std::shared_ptr<SimpleGraph> &g) :
 #if ESTIMATE_METHOD == PATH_PROBABILITY
-        // Path probability
+// Path probability
         nodesWithOutLabel(g->getNoLabels(), 0), nodesWithInLabel(g->getNoLabels(), 0),
 #elif (ESTIMATE_METHOD == SAMPLING) || (ESTIMATE_METHOD == BRUTE_FORCE)
         // Sampling / Brute force
@@ -130,36 +130,32 @@ void SimpleEstimator::calculatePathProbabilities(dimArr<float, S>& labelProbabil
 template <>
 void SimpleEstimator::countPaths<1>(dimArr<uint32_t, 1>& path, uint32_t node) {
     // Go through all outgoing transitions from this node.
-    for ( auto t = graph->begin(node); t != graph->end(node); t++ ) {
-        for(uint32_t label : t->second) {
-            path[label]++;
-        }
+    for ( const std::pair<uint32_t,uint32_t> &t : graph->adj[node] ) {
+        uint32_t label = t.first;
+        path[label]++;
     }
 
     // Go through all incoming transitions from this node.
-    for ( auto t = graph->rbegin(node); t != graph->rend(node); t++ ) {
-        for(uint32_t label : t->second) {
-            path[L + label]++;
-        }
+    for ( const std::pair<uint32_t,uint32_t> &t : graph->reverse_adj[node] ) {
+        uint32_t label = t.first;
+        path[L+label]++;
     }
 }
 
 template<size_t S>
 void SimpleEstimator::countPaths(dimArr<uint32_t, S> &path, uint32_t node) {
-    // Go through all outgoing transitions from this node
-    for ( auto t = graph->begin(node); t != graph->end(node); t++ ) {
-        for(uint32_t label : t->second) {
-            countPaths(path[label].first, t->first.second);
-            path[label].second++;
-        }
+    // Go through all outgoing transitions from this node.
+    for ( const std::pair<uint32_t,uint32_t> &t : graph->adj[node] ) {
+        uint32_t label = t.first;
+        countPaths(path[label].first, t.second);
+        path[label].second++;
     }
 
     // Go through all incoming transitions from this node.
-    for ( auto t = graph->rbegin(node); t != graph->rend(node); t++ ) {
-        for(uint32_t label : t->second) {
-            countPaths(path[L + label].first, t->first.second);
-            path[L + label].second++;
-        }
+    for ( const std::pair<uint32_t,uint32_t> &t : graph->reverse_adj[node] ) {
+        uint32_t label = t.first;
+        countPaths(path[L+label].first, t.second);
+        path[L+label].second++;
     }
 }
 
@@ -178,7 +174,7 @@ void SimpleEstimator::prepareProbability() {
     std::vector<bool> seenLabelForNode(L, false);
 
     // Go through all nodes and count the transition labels and number of nodes with specific outgoing transitions.
-    for ( const auto &n : graph->adj ) {
+    for ( const std::vector<std::pair<uint32_t,uint32_t>> &n : graph->adj ) {
 
         // Reset flags for which labels have already been seen for this node.
         for (auto &&i : seenLabelForNode) {
@@ -186,7 +182,8 @@ void SimpleEstimator::prepareProbability() {
         }
 
         // Go through all transitions from this node.
-        for ( uint32_t label : n.second ) {
+        for ( const std::pair<uint32_t,uint32_t> &t : n ) {
+            uint32_t label = t.first;
             if ( !seenLabelForNode[label] ) {
                 nodesWithOutLabel[label]++;
                 seenLabelForNode[label] = true;
@@ -195,7 +192,7 @@ void SimpleEstimator::prepareProbability() {
     }
 
     // Go through all nodes and count the number of nodes with specific incoming transitions.
-    for ( const auto &n : graph->r_adj ) {
+    for ( const std::vector<std::pair<uint32_t,uint32_t>> &n : graph->reverse_adj ) {
 
         // Reset flags for which labels have already been seen for this node.
         for (auto &&i : seenLabelForNode) {
@@ -203,7 +200,8 @@ void SimpleEstimator::prepareProbability() {
         }
 
         // Go through all transitions to this node.
-        for ( uint32_t label : n.second ) {
+        for ( const std::pair<uint32_t,uint32_t> &t : n ) {
+            uint32_t label = t.first;
             if ( !seenLabelForNode[label] ) {
                 nodesWithInLabel[label]++;
                 seenLabelForNode[label] = true;
@@ -363,20 +361,11 @@ void SimpleEstimator::prepareBruteForce() {
     }
 
     // Fill summaries
-    for (uint32_t node = 0; node < graph->adj.size(); node++) {
-        for( auto it = graph->begin(node); it != graph->end(node); it++) {
-            for(uint32_t label : it->second) {
-                summary[node].emplace_back(label, it->first.second);
-            }
-        }
+    for (size_t node = 0; node < graph->adj.size(); node++) {
+        summary[node].insert(summary[node].end(), graph->adj[node].begin(), graph->adj[node].end());
     }
-
-    for (uint32_t node = 0; node < graph->adj.size(); node++) {
-        for( auto it = graph->rbegin(node); it != graph->rend(node); it++) {
-            for(uint32_t label : it->second) {
-                r_summary[node].emplace_back(label, it->first.second);
-            }
-        }
+    for (size_t node = 0; node < graph->reverse_adj.size(); node++) {
+        r_summary[node].insert(r_summary[node].end(), graph->reverse_adj[node].begin(), graph->reverse_adj[node].end());
     }
 }
 
