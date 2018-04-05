@@ -5,16 +5,15 @@
 #ifndef QS_SIMPLEGRAPH_H
 #define QS_SIMPLEGRAPH_H
 
-#include <unordered_map>
-#include <unordered_set>
-#include <vector>
-#include <iostream>
-#include <regex>
+#include <algorithm>
 #include <fstream>
+#include <regex>
+#include <vector>
+
 #include "Graph.h"
 
 class SimpleGraph : public Graph {
-public:
+private:
     std::vector<std::vector<std::pair<uint32_t,uint32_t>>> adj;
     std::vector<std::vector<std::pair<uint32_t,uint32_t>>> reverse_adj; // vertex adjacency list
 protected:
@@ -38,6 +37,14 @@ public:
     void setNoVertices(uint32_t n);
     void setNoLabels(uint32_t noLabels);
 
+    int outDegree(uint32_t n) const;
+    int inDegree(uint32_t n) const;
+
+    std::vector<std::pair<uint32_t, uint32_t>>& forward(uint32_t n);
+    std::vector<std::pair<uint32_t, uint32_t>>& reverse(uint32_t n);
+
+    static uint32_t getLabel(const std::pair<uint32_t, uint32_t>& labelTarget);
+    static uint32_t getTarget(const std::pair<uint32_t, uint32_t>& labelTarget);
 };
 
 #endif //QS_SIMPLEGRAPH_H

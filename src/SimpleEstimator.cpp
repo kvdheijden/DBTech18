@@ -3,7 +3,9 @@
 //
 #include "SimpleEstimator.h"
 
-#if ESTIMATE_METHOD == PATH_PROBABILITY
+////////////////////////////////
+/// Variable Dimension Array ///
+////////////////////////////////
 template<typename T>
 void dimArr<T, 1>::init(size_t n, T val) {
     this->resize(n);
@@ -20,146 +22,71 @@ void dimArr<T, N>::init(size_t n, T val) {
         t.first.init(n, val);
     }
 }
-#endif
 
-SimpleEstimator::SimpleEstimator(std::shared_ptr<SimpleGraph> &g) :
-#if ESTIMATE_METHOD == PATH_PROBABILITY
-// Path probability
-        nodesWithOutLabel(g->getNoLabels(), 0), nodesWithInLabel(g->getNoLabels(), 0),
-#elif (ESTIMATE_METHOD == SAMPLING) || (ESTIMATE_METHOD == BRUTE_FORCE)
-        // Sampling / Brute force
-        summary(g->getNoVertices()),
-        r_summary(g->getNoVertices()),
-#endif
-        N(g->getNoVertices()), L(g->getNoLabels())
+////////////////////////////////
+/// Estimator Implementation ///
+////////////////////////////////
+EstimatorImpl::EstimatorImpl(std::shared_ptr<SimpleGraph> g)
+        : N(g->getNoVertices()), L(g->getNoLabels())
 {
     // works only with SimpleGraph
     graph = g;
+}
 
-#if ESTIMATE_METHOD == PATH_PROBABILITY
-    pathProbabilities.init(2 * L, 0.0f);
-#endif
+void EstimatorImpl::query_to_vec(RPQTree * query, std::vector<uint32_t>& vec) {
+    if(query->isLeaf()) {
+        const char *c_str = query->data.c_str();
+        char *end;
+        uint32_t label = std::strtoul(c_str, &end, 10);
+        if(*end == '-')
+            label += graph->getNoLabels();
+        vec.push_back(label);
+    } else if (query->isUnary()) {
+        query_to_vec(query->left, vec);
+    } else {
+        query_to_vec(query->left, vec);
+        query_to_vec(query->right, vec);
+    }
+}
+
+////////////////////////
+/// Simple Estimator ///
+////////////////////////
+SimpleEstimator::SimpleEstimator(std::shared_ptr<SimpleGraph> g)
+{
+    if(estimate_method == PATH_PROBABILITY) {
+        impl = new PathProbEstimator(g);
+    } else if(estimate_method == SAMPLING) {
+        impl = new SamplingEstimator(g);
+    } else if(estimate_method == BRUTE_FORCE) {
+        impl = new BruteForceEstimator(g);
+    } else {
+        throw std::runtime_error("Invalid estimator");
+    }
 }
 
 void SimpleEstimator::prepare() {
-#if ESTIMATE_METHOD == PATH_PROBABILITY
-    prepareProbability();
-#elif ESTIMATE_METHOD == SAMPLING
-    prepareSampling();
-#elif ESTIMATE_METHOD == BRUTE_FORCE
-    prepareBruteForce();
-#endif
+    impl->prepare();
 }
 
 cardStat SimpleEstimator::estimate(RPQTree *q) {
-
-#if ESTIMATE_METHOD == PATH_PROBABILITY
-    return estimateProbability(q);
-#elif ESTIMATE_METHOD == SAMPLING
-    return estimateSampling(q);
-#elif ESTIMATE_METHOD == BRUTE_FORCE
-    return estimateBruteForce(q);
-#else
-    return {0, 0, 0};
-#endif
+    return impl->estimate(q);
 }
 
-#if ESTIMATE_METHOD == PATH_PROBABILITY
+SimpleEstimator::~SimpleEstimator() {
+    delete impl;
+}
+
 ////////////////////////
-/// PATH PROBABILITY ///
+/// Path Probability ///
 ////////////////////////
-
-template<>
-float SimpleEstimator::calcProbRecursive<1>(const std::vector<uint32_t> &query, const dimArr<float, 1>& probabilities) {
-    if(query.empty()) {
-        return 1.0f;
-    }
-
-    return probabilities[query[0]];
+PathProbEstimator::PathProbEstimator(std::shared_ptr<SimpleGraph> g)
+        : EstimatorImpl(g), nodesWithOutLabel(g->getNoLabels(), 0), nodesWithInLabel(g->getNoLabels(), 0)
+{
+    pathProbabilities.init(2 * L, 0.0f);
 }
 
-template<size_t S>
-float SimpleEstimator::calcProbRecursive(const std::vector<uint32_t> &query, const dimArr<float, S>& probabilities) {
-    if(query.empty()) {
-        return 1.0f;
-    }
-    if(query.size() == 1) {
-        return probabilities[query[0]].second;
-    }
-
-    return calcProbRecursive(std::vector<uint32_t>(query.begin() + 1, query.end()), probabilities[query[0]].first);
-}
-
-template <>
-float SimpleEstimator::calcProb<1>(std::vector<uint32_t> query, const dimArr<float, 1>& probabilities) {
-    float prob = 1.0f;
-    for(const uint32_t& i : query) {
-        prob *= probabilities[i];
-    }
-    return prob;
-}
-
-template <size_t S>
-float SimpleEstimator::calcProb(std::vector<uint32_t> query, const dimArr<float, S>& probabilities) {
-    float prob = calcProbRecursive(query, probabilities);
-
-    while (query.size() > D) {
-        uint32_t first = query[0];
-        query.erase(query.begin());
-        prob *= (calcProbRecursive(query, probabilities) / calcProbRecursive(query, probabilities[first].first));
-    }
-
-    return prob;
-}
-
-template <>
-void SimpleEstimator::calculatePathProbabilities<1>(dimArr<float, 1>& labelProbabilities, const dimArr<uint32_t, 1>& labelCounts) {
-    for(int i = 0; i < 2 * L; i++) {
-        labelProbabilities[i] = ((float)labelCounts[i])/((float)N);
-    }
-}
-
-template <size_t S>
-void SimpleEstimator::calculatePathProbabilities(dimArr<float, S>& labelProbabilities, const dimArr<uint32_t, S>& labelCounts) {
-    for(int i = 0; i < 2 * L; i++) {
-        labelProbabilities[i].second = ((float)labelCounts[i].second)/((float)N);
-        calculatePathProbabilities(labelProbabilities[i].first, labelCounts[i].first);
-    }
-}
-
-template <>
-void SimpleEstimator::countPaths<1>(dimArr<uint32_t, 1>& path, uint32_t node) {
-    // Go through all outgoing transitions from this node.
-    for ( const std::pair<uint32_t,uint32_t> &t : graph->adj[node] ) {
-        uint32_t label = t.first;
-        path[label]++;
-    }
-
-    // Go through all incoming transitions from this node.
-    for ( const std::pair<uint32_t,uint32_t> &t : graph->reverse_adj[node] ) {
-        uint32_t label = t.first;
-        path[L+label]++;
-    }
-}
-
-template<size_t S>
-void SimpleEstimator::countPaths(dimArr<uint32_t, S> &path, uint32_t node) {
-    // Go through all outgoing transitions from this node.
-    for ( const std::pair<uint32_t,uint32_t> &t : graph->adj[node] ) {
-        uint32_t label = t.first;
-        countPaths(path[label].first, t.second);
-        path[label].second++;
-    }
-
-    // Go through all incoming transitions from this node.
-    for ( const std::pair<uint32_t,uint32_t> &t : graph->reverse_adj[node] ) {
-        uint32_t label = t.first;
-        countPaths(path[L+label].first, t.second);
-        path[L+label].second++;
-    }
-}
-
-void SimpleEstimator::prepareProbability() {
+void PathProbEstimator::prepare() {
 
     // Total number of times a specific set of (at most three) labels occurs.
     dimArr<uint32_t, D> labels;
@@ -174,7 +101,8 @@ void SimpleEstimator::prepareProbability() {
     std::vector<bool> seenLabelForNode(L, false);
 
     // Go through all nodes and count the transition labels and number of nodes with specific outgoing transitions.
-    for ( const std::vector<std::pair<uint32_t,uint32_t>> &n : graph->adj ) {
+    for ( uint32_t node = 0; node < graph->getNoVertices(); node++ ) {
+        auto n = graph->forward(node);
 
         // Reset flags for which labels have already been seen for this node.
         for (auto &&i : seenLabelForNode) {
@@ -192,7 +120,8 @@ void SimpleEstimator::prepareProbability() {
     }
 
     // Go through all nodes and count the number of nodes with specific incoming transitions.
-    for ( const std::vector<std::pair<uint32_t,uint32_t>> &n : graph->reverse_adj ) {
+    for ( uint32_t node = 0; node < graph->getNoVertices(); node++ ) {
+        auto n = graph->reverse(node);
 
         // Reset flags for which labels have already been seen for this node.
         for (auto &&i : seenLabelForNode) {
@@ -213,7 +142,7 @@ void SimpleEstimator::prepareProbability() {
     calculatePathProbabilities(pathProbabilities, labels);
 }
 
-cardStat SimpleEstimator::estimateProbability(RPQTree *q) {
+cardStat PathProbEstimator::estimate(RPQTree *q) {
     // Counts of potential start nodes and end nodes for this query.
     uint32_t potStartNodeCount, potEndNodeCount;
 
@@ -256,7 +185,7 @@ cardStat SimpleEstimator::estimateProbability(RPQTree *q) {
     // Get an amount of transitions at most D, look up probability and multiply with previous probability.
 
     std::vector<uint32_t> query;
-    convertQuery(q, query);
+    query_to_vec(q, query);
     pathProb = calcProb(query, pathProbabilities);
     if(calculate_in_and_out) {
         std::vector<uint32_t> startQuery = query;
@@ -282,78 +211,106 @@ cardStat SimpleEstimator::estimateProbability(RPQTree *q) {
     return cardStat {0, paths, 0};
 }
 
-void SimpleEstimator::convertQuery(RPQTree *q, std::vector<uint32_t> &query) {
-    // First go to left leaf. If there is any useful data, append it to the query. Then go to right leaf.
-
-    if (q == nullptr) {
-        return;
+template<>
+float PathProbEstimator::calcProbRecursive<1>(const std::vector<uint32_t> &query, const dimArr<float, 1>& probabilities) {
+    if(query.empty()) {
+        return 1.0f;
     }
 
-    convertQuery(q->left, query);
-
-    std::string rootLabel = q->data;
-    if ( rootLabel != "/" ) {
-        unsigned int rootLabelInt = std::stoul(rootLabel);
-        if (rootLabel[rootLabel.size()-1] == '+') {
-            query.push_back(rootLabelInt);
-        } else {
-            query.push_back(rootLabelInt + L);
-        }
-    }
-
-    convertQuery(q->right, query);
+    return probabilities[query[0]];
 }
 
-#elif ESTIMATE_METHOD == SAMPLING
-////////////////
-/// SAMPLING ///
-////////////////
-
-void SimpleEstimator::prepareSampling() {
-    // Get highest allowed sample and number of samples
-    const auto max_size = graph->getNoVertices();
-    const auto nrof_samples = floor(max_size/sampling_factor);
-
-    std::default_random_engine e(r());
-    std::uniform_int_distribution<uint32_t> d(0, max_size);
-
-    while (sample.size() <= nrof_samples)
-    {
-        // Uniform random number between 0 and max_size
-        sample.insert(d(e));
+template<size_t S>
+float PathProbEstimator::calcProbRecursive(const std::vector<uint32_t> &query, const dimArr<float, S>& probabilities) {
+    if(query.empty()) {
+        return 1.0f;
+    }
+    if(query.size() == 1) {
+        return probabilities[query[0]].second;
     }
 
-    prepareBruteForce();
+    return calcProbRecursive(std::vector<uint32_t>(query.begin() + 1, query.end()), probabilities[query[0]].first);
 }
 
-cardStat SimpleEstimator::estimateSampling(RPQTree *q) {
-    if (sampling_factor <= 1)
-        return estimateBruteForce(q);
-
-    uint32_t total = 0;
-    std::vector<std::string> path = parseQuery(q);
-
-    for (const uint32_t& i : sample)
-    {
-        unique_end_vertices_per_vertex.clear();
-        subEstimateBruteForce(path, i, calculate_in_and_out);
-        total += unique_end_vertices_per_vertex.size();
+template <>
+float PathProbEstimator::calcProb<1>(std::vector<uint32_t> query, const dimArr<float, 1>& probabilities) {
+    float prob = 1.0f;
+    for(const uint32_t& i : query) {
+        prob *= probabilities[i];
     }
-    total *= sampling_factor;
+    return prob;
+}
 
-    if (calculate_in_and_out) {
-        return cardStat {this->n_start_vertices, total, static_cast<uint32_t>(this->unique_end_vertices.size())};
-    } else {
-        return cardStat {0, total, 0};
+template <size_t S>
+float PathProbEstimator::calcProb(std::vector<uint32_t> query, const dimArr<float, S>& probabilities) {
+    float prob = calcProbRecursive(query, probabilities);
+
+    while (query.size() > D) {
+        uint32_t first = query[0];
+        query.erase(query.begin());
+        prob *= (calcProbRecursive(query, probabilities) / calcProbRecursive(query, probabilities[first].first));
+    }
+
+    return prob;
+}
+
+template <>
+void PathProbEstimator::calculatePathProbabilities<1>(dimArr<float, 1>& labelProbabilities, const dimArr<uint32_t, 1>& labelCounts) {
+    for(int i = 0; i < 2 * L; i++) {
+        labelProbabilities[i] = ((float)labelCounts[i])/((float)N);
     }
 }
-#endif
-#if (ESTIMATE_METHOD == SAMPLING) || (ESTIMATE_METHOD == BRUTE_FORCE)
+
+template <size_t S>
+void PathProbEstimator::calculatePathProbabilities(dimArr<float, S>& labelProbabilities, const dimArr<uint32_t, S>& labelCounts) {
+    for(int i = 0; i < 2 * L; i++) {
+        labelProbabilities[i].second = ((float)labelCounts[i].second)/((float)N);
+        calculatePathProbabilities(labelProbabilities[i].first, labelCounts[i].first);
+    }
+}
+
+template <>
+void PathProbEstimator::countPaths<1>(dimArr<uint32_t, 1>& path, uint32_t node) {
+    // Go through all outgoing transitions from this node.
+    for ( const auto& t : graph->forward(node) ) {
+        uint32_t label = t.first;
+        path[label]++;
+    }
+
+    // Go through all incoming transitions from this node.
+    for ( const auto& t : graph->reverse(node) ) {
+        uint32_t label = t.first;
+        path[L+label]++;
+    }
+}
+
+template<size_t S>
+void PathProbEstimator::countPaths(dimArr<uint32_t, S> &path, uint32_t node) {
+    // Go through all outgoing transitions from this node.
+    for ( const auto& t : graph->forward(node) ) {
+        uint32_t label = t.first;
+        countPaths(path[label].first, t.second);
+        path[label].second++;
+    }
+
+    // Go through all incoming transitions from this node.
+    for ( const auto& t : graph->reverse(node) ) {
+        uint32_t label = t.first;
+        countPaths(path[L+label].first, t.second);
+        path[L+label].second++;
+    }
+}
+
 ///////////////////
-/// BRUTE FORCE ///
+/// Brute Force ///
 ///////////////////
+BruteForceEstimator::BruteForceEstimator(std::shared_ptr<SimpleGraph> g)
+        : EstimatorImpl(g), summary(g->getNoVertices()), r_summary(g->getNoVertices())
+{
 
-void SimpleEstimator::prepareBruteForce() {
+}
+
+void BruteForceEstimator::prepare() {
     if (calculate_in_and_out) {
         // Clear start and end vertex counters
         this->n_start_vertices = 0;
@@ -361,15 +318,17 @@ void SimpleEstimator::prepareBruteForce() {
     }
 
     // Fill summaries
-    for (size_t node = 0; node < graph->adj.size(); node++) {
-        summary[node].insert(summary[node].end(), graph->adj[node].begin(), graph->adj[node].end());
+    for (size_t node = 0; node < graph->getNoVertices(); node++) {
+        std::vector<std::pair<uint32_t, uint32_t>>& adj = graph->forward(node);
+        summary[node].insert(summary[node].end(), adj.begin(), adj.end());
     }
-    for (size_t node = 0; node < graph->reverse_adj.size(); node++) {
-        r_summary[node].insert(r_summary[node].end(), graph->reverse_adj[node].begin(), graph->reverse_adj[node].end());
+    for (size_t node = 0; node < graph->getNoVertices(); node++) {
+        std::vector<std::pair<uint32_t, uint32_t>>& reverse_adj = graph->reverse(node);
+        r_summary[node].insert(r_summary[node].end(), reverse_adj.begin(), reverse_adj.end());
     }
 }
 
-cardStat SimpleEstimator::estimateBruteForce(RPQTree *q) {
+cardStat BruteForceEstimator::estimate(RPQTree *q) {
     uint32_t total = 0;
     std::vector<std::string> path = parseQuery(q);
 
@@ -386,13 +345,13 @@ cardStat SimpleEstimator::estimateBruteForce(RPQTree *q) {
     }
 }
 
-std::string SimpleEstimator::treeToString(const RPQTree *q) const {
+std::string BruteForceEstimator::treeToString(const RPQTree *q) const {
     if(q == nullptr) return "";
     return treeToString(q->left) + q->data + treeToString(q->right);
 }
 
-int SimpleEstimator::subEstimateBruteForce(const std::vector<std::string> &path, uint32_t node,
-                                           bool calculate_start_vertices) {
+int BruteForceEstimator::subEstimateBruteForce(const std::vector<std::string> &path, uint32_t node,
+                                               bool calculate_start_vertices) {
     int total = 0;
 
     if (path.empty())
@@ -413,7 +372,8 @@ int SimpleEstimator::subEstimateBruteForce(const std::vector<std::string> &path,
 
     for (const std::pair<uint32_t, uint32_t >& edge : s)
     {
-        if (edge.first == std::atol(path[0].c_str()))
+        char *end;
+        if (edge.first == std::strtol(path[0].c_str(), &end, 10))
         {
             total += subEstimateBruteForce(subPath, edge.second, false);
 
@@ -428,7 +388,7 @@ int SimpleEstimator::subEstimateBruteForce(const std::vector<std::string> &path,
     return total;
 }
 
-std::vector<std::string> SimpleEstimator::parseQuery(RPQTree *q) {
+std::vector<std::string> BruteForceEstimator::parseQuery(RPQTree *q) {
     std::stringstream ss(treeToString(q));
     std::string item;
     std::vector<std::string> path;
@@ -441,4 +401,51 @@ std::vector<std::string> SimpleEstimator::parseQuery(RPQTree *q) {
     return path;
 }
 
-#endif
+
+////////////////
+/// Sampling ///
+////////////////
+SamplingEstimator::SamplingEstimator(std::shared_ptr<SimpleGraph> g)
+        : BruteForceEstimator(g)
+{
+
+}
+
+void SamplingEstimator::prepare() {
+    // Get highest allowed sample and number of samples
+    const auto max_size = graph->getNoVertices();
+    const auto nrof_samples = floor(max_size/sampling_factor);
+
+    std::default_random_engine e(r());
+    std::uniform_int_distribution<uint32_t> d(0, max_size);
+
+    while (sample.size() <= nrof_samples)
+    {
+        // Uniform random number between 0 and max_size
+        sample.insert(d(e));
+    }
+
+    BruteForceEstimator::prepare();
+}
+
+cardStat SamplingEstimator::estimate(RPQTree *q) {
+    if (sampling_factor <= 1)
+        return BruteForceEstimator::estimate(q);
+
+    uint32_t total = 0;
+    std::vector<std::string> path = parseQuery(q);
+
+    for (const uint32_t& i : sample)
+    {
+        unique_end_vertices_per_vertex.clear();
+        subEstimateBruteForce(path, i, calculate_in_and_out);
+        total += unique_end_vertices_per_vertex.size();
+    }
+    total *= sampling_factor;
+
+    if (calculate_in_and_out) {
+        return cardStat {this->n_start_vertices, total, static_cast<uint32_t>(this->unique_end_vertices.size())};
+    } else {
+        return cardStat {0, total, 0};
+    }
+}

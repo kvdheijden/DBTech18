@@ -5,13 +5,12 @@
 #ifndef QS_SIMPLEEVALUATOR_H
 #define QS_SIMPLEEVALUATOR_H
 
-
 #include <memory>
-#include <cmath>
-#include "SimpleGraph.h"
-#include "RPQTree.h"
+#include <map>
+
 #include "Evaluator.h"
-#include "Graph.h"
+#include "SimpleGraph.h"
+#include "SimpleEstimator.h"
 
 class SimpleEvaluator;
 
@@ -49,7 +48,7 @@ public:
 
 class SimpleEvaluator : public Evaluator {
 
-    std::map<std::vector<int>, std::shared_ptr<QueryPlan>> best_plan;
+    std::map<std::vector<uint32_t>, std::shared_ptr<QueryPlan>> best_plan;
 
     std::shared_ptr<SimpleGraph> graph;
     std::shared_ptr<SimpleEstimator> est;
@@ -69,8 +68,7 @@ public:
     std::shared_ptr<ProjectionAlgorithm> find_best_projection_algorithm(RPQTree *query);
     std::shared_ptr<JoiningAlgorithm> find_best_joining_algorithm(std::shared_ptr<QueryPlan> P1, std::shared_ptr<QueryPlan> P2);
 
-    void query_to_vec(RPQTree * query, std::vector<int>& vec);
-    std::shared_ptr<QueryPlan> find_best_plan(const std::vector<int>& S);
+    std::shared_ptr<QueryPlan> find_best_plan(const std::vector<uint32_t>& S);
 };
 
 
