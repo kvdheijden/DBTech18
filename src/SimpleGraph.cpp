@@ -26,20 +26,17 @@ uint32_t SimpleGraph::getNoEdges() const {
     return sum;
 }
 
-// sort on the second item in the pair, then on the first (ascending order)
-bool sortPairs(const std::pair<uint32_t,uint32_t> &a, const std::pair<uint32_t,uint32_t> &b) {
-    if (a.second < b.second) return true;
-    if (a.second == b.second) return a.first < b.first;
-    return false;
-}
-
 uint32_t SimpleGraph::getNoDistinctEdges() const {
 
     uint32_t sum = 0;
 
     for (auto sourceVec : adj) {
 
-        std::sort(sourceVec.begin(), sourceVec.end(), sortPairs);
+        std::sort(sourceVec.begin(), sourceVec.end(), [](const std::pair<uint32_t,uint32_t> &a, const std::pair<uint32_t,uint32_t> &b){
+            if (a.second == b.second)
+                return a.first < b.first;
+            return a.second < b.second;
+        });
 
         uint32_t prevTarget = 0;
         uint32_t prevLabel = 0;
@@ -112,7 +109,7 @@ void SimpleGraph::readFromContiguousFile(const std::string &fileName) {
 
 }
 
-InterGraph::InterGraph(uint32_t n) : Graph(), V(n), edges(0) {
+InterGraph::InterGraph(uint32_t n) : Graph(), V(n) {
     edges.resize(0);
 }
 
@@ -125,8 +122,30 @@ uint32_t InterGraph::getNoEdges() const {
 }
 
 uint32_t InterGraph::getNoDistinctEdges() const {
-    std::set<std::pair<uint32_t, uint32_t>> s(edges.begin(), edges.end());
-    return s.size();
+
+    auto& v = const_cast<std::vector<std::pair<uint32_t, uint32_t>>&>(edges);
+    std::sort(v.begin(), v.end(), [](const std::pair<uint32_t,uint32_t> &a, const std::pair<uint32_t,uint32_t> &b){
+        if(a.first == b.first)
+            return a.second < b.second;
+        return a.first < b.first;
+    });
+
+    uint32_t sum = 0;
+
+    uint32_t prevSrc = 0;
+    uint32_t prevTgt = 0;
+    bool first = true;
+    for (auto edge : edges) {
+
+        if(first || !(prevSrc == edge.first && prevTgt == edge.second)) {
+            first = false;
+            sum++;
+            prevSrc = edge.first;
+            prevTgt = edge.second;
+        }
+    }
+
+    return sum;
 }
 
 uint32_t InterGraph::getNoLabels() const {
@@ -140,7 +159,7 @@ void InterGraph::addEdge(uint32_t from, uint32_t to, uint32_t) {
 
     auto e = std::make_pair(from, to);
 
-    if(std::find(edges.begin(), edges.end(), e) == edges.end())
+//    if(std::find(edges.begin(), edges.end(), e) == edges.end())
         edges.push_back(e);
 }
 

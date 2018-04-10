@@ -61,23 +61,25 @@ std::shared_ptr<InterGraph> project(uint32_t projectLabel, bool inverse, std::sh
     return out;
 }
 
-void advance(std::set<uint32_t>& subset, std::vector<std::pair<uint32_t, uint32_t>>& sorted, uint32_t& key) {
-    key = sorted.front().first;
-    subset.clear();
-    while (!sorted.empty() && sorted.front().first == key) {
-        subset.insert(sorted.front().second);
-        sorted.erase(sorted.begin());
+void advance(std::vector<std::pair<uint32_t, uint32_t>>::iterator& begin,
+             std::vector<std::pair<uint32_t, uint32_t>>::iterator& ptr,
+             const std::vector<std::pair<uint32_t, uint32_t>>::iterator& end,
+             uint32_t& key) {
+    begin = ptr;
+    key = ptr->first;
+
+    while(ptr != end && ptr->first == key) {
+        ptr++;
     }
 }
 
-std::vector<std::pair<uint32_t, uint32_t>>& sort(std::vector<std::pair<uint32_t, uint32_t>>& in) {
+void sort(std::vector<std::pair<uint32_t, uint32_t>>& in) {
     std::sort(in.begin(), in.end(), [](const std::pair<uint32_t, uint32_t>& a, const std::pair<uint32_t, uint32_t>& b){
         if(a.first == b.first) {
             return a.second < b.second;
         }
         return a.first < b.first;
     });
-    return in;
 }
 
 std::shared_ptr<InterGraph> sort_merge_join(std::shared_ptr<InterGraph> &left, std::shared_ptr<InterGraph> &right) {
@@ -89,36 +91,42 @@ std::shared_ptr<InterGraph> sort_merge_join(std::shared_ptr<InterGraph> &left, s
     });
 
     // Sort left and right edge vectors
-    auto &left_sorted = sort(left->edges);
-    auto &right_sorted = sort(right->edges);
+    sort(left->edges);
+    sort(right->edges);
+
+    auto left_begin = left->edges.begin();
+    auto right_begin = right->edges.begin();
+    auto p_left = left->edges.begin();
+    auto p_right = right->edges.begin();
+    auto left_end = left->edges.end();
+    auto right_end = right->edges.end();
 
     // Define keys and subsets
     uint32_t left_key, right_key;
-    std::set<uint32_t> left_subset, right_subset;
 
     // Initial advance first element
-    advance(left_subset, left_sorted, left_key);
-    advance(right_subset, right_sorted, right_key);
+    advance(left_begin, p_left, left_end, left_key);
+    advance(right_begin, p_right, right_end, right_key);
 
-    while (!left_subset.empty() && !right_subset.empty()) {
+    while (left_begin != left_end && right_begin != right_end) {
         if(left_key == right_key) {
 
             // Naive cartesian product
-            for(uint32_t left_source : left_subset) {
-                for(uint32_t right_target : right_subset) {
-                    output->addEdge(left_source, right_target, 0);
+            for(auto it1 = left_begin; it1 != p_left; it1++) {
+                for(auto it2 = right_begin; it2 != p_right; it2++) {
+                    output->addEdge(it1->second, it2->second, 0);
                 }
             }
 
-            // Advance both sets
-            advance(left_subset, left_sorted, left_key);
-            advance(right_subset, right_sorted, right_key);
+            // Advance both
+            advance(left_begin, p_left, left_end, left_key);
+            advance(right_begin, p_right, right_end, right_key);
         } else if (left_key < right_key) {
             // Advance left, since it's smaller than right
-            advance(left_subset, left_sorted, left_key);
+            advance(left_begin, p_left, left_end, left_key);
         } else {
             // Advance right, since it's smaller than left
-            advance(right_subset, right_sorted, right_key);
+            advance(right_begin, p_right, right_end, right_key);
         }
     }
 
@@ -152,23 +160,13 @@ std::shared_ptr<InterGraph> nested_loops_join(std::shared_ptr<InterGraph> &left,
 
 std::shared_ptr<ProjectionAlgorithm> SimpleEvaluator::find_best_projection_algorithm(RPQTree *query) {
     cardStat result = est->estimate(query);
-    // TODO: Decide which projection algorithm to use
     return std::make_shared<ProjectionAlgorithm>(result.noPaths, query->data, this->graph, &project);
 }
 
 std::shared_ptr<JoiningAlgorithm> SimpleEvaluator::find_best_joining_algorithm(std::shared_ptr<QueryPlan> P1, std::shared_ptr<QueryPlan> P2) {
-//    constexpr int size = 10;
-//    constexpr int diff = 1000;
-//
+    // TODO: Plan
     const float T_r = P1->cost, T_s = P2->cost;
-//    const float T_small = (T_r < T_s) ? T_r : T_s;
-//    const float T_large = (T_r > T_s) ? T_r : T_s;
-//
-//    if(T_small < size || T_small * diff < T_large) {
-//        return std::make_shared<JoiningAlgorithm>(T_r + T_r * T_s, P1, P2, &nested_loops_join);
-//    }
-
-    return std::make_shared<JoiningAlgorithm>((2 * T_r * std::log(T_r)) + (2 * T_s * std::log(T_s)) + (T_r + T_s), P1, P2, &sort_merge_join);
+    return std::make_shared<JoiningAlgorithm>(T_r + T_s, P1, P2, &sort_merge_join);
 }
 
 std::shared_ptr<QueryPlan> SimpleEvaluator::find_best_plan(const std::vector<uint32_t>& S) {
