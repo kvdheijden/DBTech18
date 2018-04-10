@@ -71,8 +71,8 @@ void SimpleGraph::addEdge(uint32_t from, uint32_t to, uint32_t edgeLabel) {
         throw std::runtime_error(std::string("Edge data out of bounds: ") +
                                  "(" + std::to_string(from) + "," + std::to_string(to) + "," +
                                  std::to_string(edgeLabel) + ")");
-    adj[from].emplace_back(std::make_pair(edgeLabel, to));
-    reverse_adj[to].emplace_back(std::make_pair(edgeLabel, from));
+    adj.at(from).emplace_back(edgeLabel, to);
+    reverse_adj.at(to).emplace_back(edgeLabel, from);
 }
 
 void SimpleGraph::readFromContiguousFile(const std::string &fileName) {
@@ -110,4 +110,40 @@ void SimpleGraph::readFromContiguousFile(const std::string &fileName) {
 
     graphFile.close();
 
+}
+
+InterGraph::InterGraph(uint32_t n) : Graph(), V(n), edges(0) {
+    edges.resize(0);
+}
+
+uint32_t InterGraph::getNoVertices() const {
+    return V;
+}
+
+uint32_t InterGraph::getNoEdges() const {
+    return edges.size();
+}
+
+uint32_t InterGraph::getNoDistinctEdges() const {
+    std::set<std::pair<uint32_t, uint32_t>> s(edges.begin(), edges.end());
+    return s.size();
+}
+
+uint32_t InterGraph::getNoLabels() const {
+    return 1;
+}
+
+void InterGraph::addEdge(uint32_t from, uint32_t to, uint32_t) {
+    if(from >= V || to >= V)
+        throw std::runtime_error(std::string("Edge data out of bounds: ") +
+                                 "(" + std::to_string(from) + "," + std::to_string(to) + ")");
+
+    auto e = std::make_pair(from, to);
+
+    if(std::find(edges.begin(), edges.end(), e) == edges.end())
+        edges.push_back(e);
+}
+
+void InterGraph::readFromContiguousFile(const std::string &fileName) {
+    throw std::runtime_error("Invalid operation");
 }

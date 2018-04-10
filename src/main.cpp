@@ -173,6 +173,8 @@ int main(int argc, char *argv[]) {
         std::cout << "Usage: quicksilver <graphFile> <queriesFile>" << std::endl;
         return 0;
     }
+    std::cout.setf(std::ios::unitbuf);
+    std::cerr.setf(std::ios::unitbuf);
 
     // args
     std::string graphFile {argv[1]};

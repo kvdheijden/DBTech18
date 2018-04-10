@@ -4,6 +4,8 @@
 
 #include "SimpleEvaluator.h"
 
+#include <cmath>
+
 SimpleEvaluator::SimpleEvaluator(std::shared_ptr<SimpleGraph> &g) {
 
     // works only with SimpleGraph
@@ -24,71 +26,124 @@ void SimpleEvaluator::prepare() {
 
 }
 
-cardStat SimpleEvaluator::computeStats(std::shared_ptr<SimpleGraph> &g) {
+cardStat SimpleEvaluator::computeStats(std::shared_ptr<InterGraph> &g) {
+    std::set<uint32_t> starts, ends;
 
-    cardStat stats {};
-
-    for(int source = 0; source < g->getNoVertices(); source++) {
-        if(!g->adj[source].empty()) stats.noOut++;
+    for(const auto& edge : g->edges) {
+        starts.insert(edge.first);
+        ends.insert(edge.second);
     }
 
-    stats.noPaths = g->getNoDistinctEdges();
-
-    for(int target = 0; target < g->getNoVertices(); target++) {
-        if(!g->reverse_adj[target].empty()) stats.noIn++;
-    }
-
-    return stats;
+    return {
+            starts.size(),
+            g->getNoDistinctEdges(),
+            ends.size()
+    };
 }
 
-std::shared_ptr<SimpleGraph> project(uint32_t projectLabel, bool inverse, std::shared_ptr<SimpleGraph> &in) {
+std::shared_ptr<InterGraph> project(uint32_t projectLabel, bool inverse, std::shared_ptr<SimpleGraph> &in) {
 
-    auto out = std::make_shared<SimpleGraph>(in->getNoVertices(), in->getNoLabels());
+    auto out = std::make_shared<InterGraph>(in->getNoVertices());
 
-    if(!inverse) {
-        // going forward
-        for(uint32_t source = 0; source < in->getNoVertices(); source++) {
-            for (auto labelTarget : in->adj[source]) {
+    const auto& adj = (inverse ? in->reverse_adj : in->adj);
 
-                auto label = labelTarget.first;
-                auto target = labelTarget.second;
+    for(uint32_t source = 0; source < in->getNoVertices(); source++) {
+        for (auto labelTarget : adj[source]) {
 
-                if (label == projectLabel)
-                    out->addEdge(source, target, label);
-            }
-        }
-    } else {
-        // going backward
-        for(uint32_t source = 0; source < in->getNoVertices(); source++) {
-            for (auto labelTarget : in->reverse_adj[source]) {
+            auto label = labelTarget.first;
+            auto target = labelTarget.second;
 
-                auto label = labelTarget.first;
-                auto target = labelTarget.second;
-
-                if (label == projectLabel)
-                    out->addEdge(source, target, label);
-            }
+            if (label == projectLabel)
+                out->addEdge(source, target, label);
         }
     }
 
     return out;
 }
 
-std::shared_ptr<SimpleGraph> join(std::shared_ptr<SimpleGraph> &left, std::shared_ptr<SimpleGraph> &right) {
+void advance(std::set<uint32_t>& subset, std::vector<std::pair<uint32_t, uint32_t>>& sorted, uint32_t& key) {
+    key = sorted.front().first;
+    subset.clear();
+    while (!sorted.empty() && sorted.front().first == key) {
+        subset.insert(sorted.front().second);
+        sorted.erase(sorted.begin());
+    }
+}
 
-    auto out = std::make_shared<SimpleGraph>(left->getNoVertices(), 1);
+std::vector<std::pair<uint32_t, uint32_t>>& sort(std::vector<std::pair<uint32_t, uint32_t>>& in) {
+    std::sort(in.begin(), in.end(), [](const std::pair<uint32_t, uint32_t>& a, const std::pair<uint32_t, uint32_t>& b){
+        if(a.first == b.first) {
+            return a.second < b.second;
+        }
+        return a.first < b.first;
+    });
+    return in;
+}
 
-    for(uint32_t leftSource = 0; leftSource < left->getNoVertices(); leftSource++) {
-        for (auto labelTarget : left->adj[leftSource]) {
+std::shared_ptr<InterGraph> sort_merge_join(std::shared_ptr<InterGraph> &left, std::shared_ptr<InterGraph> &right) {
+    auto output = std::make_shared<InterGraph>(left->getNoVertices());
 
-            int leftTarget = labelTarget.second;
-            // try to join the left target with right source
-            for (auto rightLabelTarget : right->adj[leftTarget]) {
+    // Transform the left edge vector into <target, source> pairs, so we can sort/compare on element.first in both left and right
+    std::transform(left->edges.begin(), left->edges.end(), left->edges.begin(), [](const std::pair<uint32_t, uint32_t>& e){
+        return std::make_pair(e.second, e.first);
+    });
 
-                auto rightTarget = rightLabelTarget.second;
-                out->addEdge(leftSource, rightTarget, 0);
+    // Sort left and right edge vectors
+    auto &left_sorted = sort(left->edges);
+    auto &right_sorted = sort(right->edges);
 
+    // Define keys and subsets
+    uint32_t left_key, right_key;
+    std::set<uint32_t> left_subset, right_subset;
+
+    // Initial advance first element
+    advance(left_subset, left_sorted, left_key);
+    advance(right_subset, right_sorted, right_key);
+
+    while (!left_subset.empty() && !right_subset.empty()) {
+        if(left_key == right_key) {
+
+            // Naive cartesian product
+            for(uint32_t left_source : left_subset) {
+                for(uint32_t right_target : right_subset) {
+                    output->addEdge(left_source, right_target, 0);
+                }
             }
+
+            // Advance both sets
+            advance(left_subset, left_sorted, left_key);
+            advance(right_subset, right_sorted, right_key);
+        } else if (left_key < right_key) {
+            // Advance left, since it's smaller than right
+            advance(left_subset, left_sorted, left_key);
+        } else {
+            // Advance right, since it's smaller than left
+            advance(right_subset, right_sorted, right_key);
+        }
+    }
+
+    return output;
+}
+
+std::shared_ptr<InterGraph> nested_loops_join(std::shared_ptr<InterGraph> &left, std::shared_ptr<InterGraph> &right) {
+
+    auto out = std::make_shared<InterGraph>(left->getNoVertices());
+
+    // For each tuple r in R do
+    for(const auto& left_edge : left->edges) {
+        uint32_t left_source = left_edge.first;
+        uint32_t left_target = left_edge.second;
+
+        // For each tuple s in S do
+        for(const auto& right_edge : right->edges) {
+            uint32_t right_source = right_edge.first;
+            uint32_t right_target = right_edge.second;
+
+            // If r and s satisfy the join condition
+            if(left_target == right_source)
+
+                // Then output the tuple <r,s>
+                out->addEdge(left_source, right_target, 0);
         }
     }
 
@@ -102,10 +157,18 @@ std::shared_ptr<ProjectionAlgorithm> SimpleEvaluator::find_best_projection_algor
 }
 
 std::shared_ptr<JoiningAlgorithm> SimpleEvaluator::find_best_joining_algorithm(std::shared_ptr<QueryPlan> P1, std::shared_ptr<QueryPlan> P2) {
-    // TODO: Decide which joining algorithm to use
-    // TODO: Determine better cost estimate
-    float cost = P1->cost() + P2->cost() + 1000;
-    return std::make_shared<JoiningAlgorithm>(cost, P1, P2, &join);
+//    constexpr int size = 10;
+//    constexpr int diff = 1000;
+//
+    const float T_r = P1->cost, T_s = P2->cost;
+//    const float T_small = (T_r < T_s) ? T_r : T_s;
+//    const float T_large = (T_r > T_s) ? T_r : T_s;
+//
+//    if(T_small < size || T_small * diff < T_large) {
+//        return std::make_shared<JoiningAlgorithm>(T_r + T_r * T_s, P1, P2, &nested_loops_join);
+//    }
+
+    return std::make_shared<JoiningAlgorithm>((2 * T_r * std::log(T_r)) + (2 * T_s * std::log(T_s)) + (T_r + T_s), P1, P2, &sort_merge_join);
 }
 
 std::shared_ptr<QueryPlan> SimpleEvaluator::find_best_plan(const std::vector<uint32_t>& S) {
@@ -139,7 +202,7 @@ std::shared_ptr<QueryPlan> SimpleEvaluator::find_best_plan(const std::vector<uin
                 continue;
             }
 
-            if(A->cost() < best_plan[S]->cost()) {
+            if(A->cost< best_plan[S]->cost) {
                 best_plan[S] = A;
             }
         }
@@ -152,16 +215,16 @@ cardStat SimpleEvaluator::evaluate(RPQTree *query) {
     est->impl->query_to_vec(query, flat_query);
     std::shared_ptr<QueryPlan> best_plan = find_best_plan(flat_query);
 
-    std::shared_ptr<SimpleGraph> res = best_plan->execute();
+    std::shared_ptr<InterGraph> res = best_plan->execute();
 
     return SimpleEvaluator::computeStats(res);
 }
 
 ProjectionAlgorithm::ProjectionAlgorithm(float cost, const std::string &query_string, std::shared_ptr<SimpleGraph> graph,
-                                         std::shared_ptr<SimpleGraph> (*project)(uint32_t, bool, std::shared_ptr<SimpleGraph> &))
+                                         std::shared_ptr<InterGraph> (*project)(uint32_t, bool, std::shared_ptr<SimpleGraph> &))
         : QueryPlan(cost), label(query_string), graph(std::move(graph)), project(project) {}
 
-std::shared_ptr<SimpleGraph> ProjectionAlgorithm::execute() {
+std::shared_ptr<InterGraph> ProjectionAlgorithm::execute() {
     const char *c_str = label.c_str();
     char *end;
     uint32_t projectLabel = std::strtoul(c_str, &end, 10);
@@ -170,11 +233,11 @@ std::shared_ptr<SimpleGraph> ProjectionAlgorithm::execute() {
 }
 
 JoiningAlgorithm::JoiningAlgorithm(float cost, std::shared_ptr<QueryPlan> P1, std::shared_ptr<QueryPlan> P2,
-                                   std::shared_ptr<SimpleGraph> (*join)(std::shared_ptr<SimpleGraph> &, std::shared_ptr<SimpleGraph> &))
+                                   std::shared_ptr<InterGraph> (*join)(std::shared_ptr<InterGraph> &, std::shared_ptr<InterGraph> &))
         : QueryPlan(cost), P1(std::move(P1)), P2(std::move(P2)), join(join) {}
 
-std::shared_ptr<SimpleGraph> JoiningAlgorithm::execute() {
-    std::shared_ptr<SimpleGraph> left = P1->execute();
-    std::shared_ptr<SimpleGraph> right = P2->execute();
+std::shared_ptr<InterGraph> JoiningAlgorithm::execute() {
+    std::shared_ptr<InterGraph> left = P1->execute();
+    std::shared_ptr<InterGraph> right = P2->execute();
     return join(left, right);
 }

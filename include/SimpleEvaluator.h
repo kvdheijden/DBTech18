@@ -16,34 +16,31 @@ class SimpleEvaluator;
 
 class QueryPlan {
 private:
-    const float c;
 protected:
-    explicit QueryPlan(float cost) : c(cost) {};
+    explicit QueryPlan(float cost) : cost(cost) {};
 public:
-    virtual std::shared_ptr<SimpleGraph> execute() = 0;
-    virtual float cost() {
-        return c;
-    };
+    virtual std::shared_ptr<InterGraph> execute() = 0;
+    const float cost;
 };
 
 class ProjectionAlgorithm : public QueryPlan {
 private:
     std::string label;
     std::shared_ptr<SimpleGraph> graph;
-    std::shared_ptr<SimpleGraph> (*project)(uint32_t projectLabel, bool inverse, std::shared_ptr<SimpleGraph> &in);
+    std::shared_ptr<InterGraph> (*project)(uint32_t projectLabel, bool inverse, std::shared_ptr<SimpleGraph> &in);
 public:
-    ProjectionAlgorithm(float cost, const std::string& query_string, std::shared_ptr<SimpleGraph> graph, std::shared_ptr<SimpleGraph> (*project)(uint32_t, bool, std::shared_ptr<SimpleGraph> &));
-    std::shared_ptr<SimpleGraph> execute() override;
+    ProjectionAlgorithm(float cost, const std::string& query_string, std::shared_ptr<SimpleGraph> graph, std::shared_ptr<InterGraph> (*project)(uint32_t, bool, std::shared_ptr<SimpleGraph> &));
+    std::shared_ptr<InterGraph> execute() override;
 };
 
 class JoiningAlgorithm : public QueryPlan {
 private:
     std::shared_ptr<QueryPlan> P1;
     std::shared_ptr<QueryPlan> P2;
-    std::shared_ptr<SimpleGraph> (*join)(std::shared_ptr<SimpleGraph> &left, std::shared_ptr<SimpleGraph> &right);
+    std::shared_ptr<InterGraph> (*join)(std::shared_ptr<InterGraph> &left, std::shared_ptr<InterGraph> &right);
 public:
-    JoiningAlgorithm(float cost, std::shared_ptr<QueryPlan> P1, std::shared_ptr<QueryPlan> P2, std::shared_ptr<SimpleGraph> (*join)(std::shared_ptr<SimpleGraph> &, std::shared_ptr<SimpleGraph> &));
-    std::shared_ptr<SimpleGraph> execute() override;
+    JoiningAlgorithm(float cost, std::shared_ptr<QueryPlan> P1, std::shared_ptr<QueryPlan> P2, std::shared_ptr<InterGraph> (*join)(std::shared_ptr<InterGraph> &, std::shared_ptr<InterGraph> &));
+    std::shared_ptr<InterGraph> execute() override;
 };
 
 class SimpleEvaluator : public Evaluator {
@@ -63,7 +60,7 @@ public:
 
     void attachEstimator(std::shared_ptr<SimpleEstimator> &e);
 
-    static cardStat computeStats(std::shared_ptr<SimpleGraph> &g);
+    static cardStat computeStats(std::shared_ptr<InterGraph> &g);
 
     std::shared_ptr<ProjectionAlgorithm> find_best_projection_algorithm(RPQTree *query);
     std::shared_ptr<JoiningAlgorithm> find_best_joining_algorithm(std::shared_ptr<QueryPlan> P1, std::shared_ptr<QueryPlan> P2);
