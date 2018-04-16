@@ -20,6 +20,8 @@ public:
     // This means that only the (somewhat) dense graph is represented here.
     std::vector<std::vector<std::pair<uint32_t,uint32_t>>> adj;
     std::vector<std::vector<std::pair<uint32_t,uint32_t>>> reverse_adj;
+    std::unordered_map<uint32_t, std::vector<std::pair<uint32_t, uint32_t>>> edge_index;
+    std::unordered_map<uint32_t, std::vector<std::pair<uint32_t, uint32_t>>> edge_index_inverse;
 protected:
     uint32_t V;
     uint32_t L;

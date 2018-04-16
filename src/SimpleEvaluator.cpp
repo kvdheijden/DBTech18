@@ -23,7 +23,6 @@ void SimpleEvaluator::prepare() {
     if(est != nullptr) est->prepare();
 
     // prepare other things here.., if necessary
-
 }
 
 cardStat SimpleEvaluator::computeStats(std::shared_ptr<InterGraph> &g) {
@@ -45,17 +44,11 @@ std::shared_ptr<InterGraph> project(uint32_t projectLabel, bool inverse, std::sh
 
     auto out = std::make_shared<InterGraph>(in->getNoVertices());
 
-    const auto& adj = (inverse ? in->reverse_adj : in->adj);
+    const auto& list = (inverse ? in->edge_index_inverse[projectLabel] : in->edge_index[projectLabel]);
 
-    for(uint32_t source = 0; source < in->getNoVertices(); source++) {
-        for (auto labelTarget : adj[source]) {
-
-            auto label = labelTarget.first;
-            auto target = labelTarget.second;
-
-            if (label == projectLabel)
-                out->addEdge(source, target, label);
-        }
+    for (auto edge : list)
+    {
+        out->addEdge(edge.first, edge.second, projectLabel);
     }
 
     return out;

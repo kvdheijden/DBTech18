@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <map>
+#include <unordered_set>
 
 #include "Evaluator.h"
 #include "SimpleGraph.h"
@@ -49,7 +50,6 @@ class SimpleEvaluator : public Evaluator {
 
     std::shared_ptr<SimpleGraph> graph;
     std::shared_ptr<SimpleEstimator> est;
-
 public:
 
     explicit SimpleEvaluator(std::shared_ptr<SimpleGraph> &g);
@@ -66,6 +66,9 @@ public:
     std::shared_ptr<JoiningAlgorithm> find_best_joining_algorithm(std::shared_ptr<QueryPlan> P1, std::shared_ptr<QueryPlan> P2);
 
     std::shared_ptr<QueryPlan> find_best_plan(const std::vector<uint32_t>& S);
+
+    std::unordered_map<uint32_t, std::vector<std::pair<uint32_t, uint32_t>>> edge_index;
+    std::unordered_map<uint32_t, std::vector<std::pair<uint32_t, uint32_t>>> edge_index_inverse;
 };
 
 

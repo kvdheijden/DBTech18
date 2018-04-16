@@ -107,6 +107,19 @@ void SimpleGraph::readFromContiguousFile(const std::string &fileName) {
 
     graphFile.close();
 
+    //Indexing:
+    for(uint32_t vertex = 0; vertex < this->getNoVertices(); vertex++)
+    {
+        for (auto labelTarget : this->adj[vertex])
+        {
+            edge_index[labelTarget.first].push_back(std::make_pair(vertex, labelTarget.second));
+        }
+
+        for (auto labelTarget : this->reverse_adj[vertex])
+        {
+            edge_index_inverse[labelTarget.first].push_back(std::make_pair(vertex, labelTarget.second));
+        }
+    }
 }
 
 InterGraph::InterGraph(uint32_t n) : Graph(), V(n) {
