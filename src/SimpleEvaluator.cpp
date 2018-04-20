@@ -162,12 +162,6 @@ std::shared_ptr<JoiningAlgorithm> SimpleEvaluator::find_best_joining_algorithm(s
     return std::make_shared<JoiningAlgorithm>(T_r + T_s, P1, P2, &sort_merge_join);
 }
 
-//RPQTree* SimpleEvaluator::vecToTree(std::vector<uint32_t> S) {
-//    for (int i = 0; i < S.size(); ++i) {
-//
-//    }
-//}
-
 std::shared_ptr<QueryPlan> SimpleEvaluator::find_best_plan(const std::vector<uint32_t>& S) {
     if(best_plan.find(S) != best_plan.end()) {
         return best_plan[S];
