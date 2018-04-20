@@ -162,6 +162,12 @@ std::shared_ptr<JoiningAlgorithm> SimpleEvaluator::find_best_joining_algorithm(s
     return std::make_shared<JoiningAlgorithm>(T_r + T_s, P1, P2, &sort_merge_join);
 }
 
+//RPQTree* SimpleEvaluator::vecToTree(std::vector<uint32_t> S) {
+//    for (int i = 0; i < S.size(); ++i) {
+//
+//    }
+//}
+
 std::shared_ptr<QueryPlan> SimpleEvaluator::find_best_plan(const std::vector<uint32_t>& S) {
     if(best_plan.find(S) != best_plan.end()) {
         return best_plan[S];
@@ -187,6 +193,31 @@ std::shared_ptr<QueryPlan> SimpleEvaluator::find_best_plan(const std::vector<uin
             std::shared_ptr<QueryPlan> P1 = find_best_plan(S1);
             std::shared_ptr<QueryPlan> P2 = find_best_plan(S2);
             std::shared_ptr<JoiningAlgorithm> A = find_best_joining_algorithm(P1, P2);
+
+            std::string strS1;
+            std::string strS2;
+            // Need to convert S1 and S2 to strings.
+            for (int i = 0; i < S1.size(); ++i) {
+                if(S[0] < graph->getNoLabels()) {
+                    strS1 += std::to_string(S1[i]) + '+';
+                } else {
+                    strS1 += std::to_string(S1[i] - graph->getNoLabels()) + '-';
+                }
+            }
+            for (int i = 0; i < S2.size(); ++i) {
+                if(S[0] < graph->getNoLabels()) {
+                    strS2 += std::to_string(S2[i]) + '+';
+                } else {
+                    strS2 += std::to_string(S2[i] - graph->getNoLabels()) + '-';
+                }
+            }
+
+            RPQTree* rpqS1 = RPQTree::strToTree(strS1);
+            RPQTree* rpqS2 = RPQTree::strToTree(strS2);
+            const float sizeS1 = est->estimate(rpqS1).noPaths;
+            const float sizeS2 = est->estimate(rpqS2).noPaths;
+            const float joinCost = sqrtf(sizeS1) * sqrtf(sizeS2);
+            A->cost += joinCost;
 
             if(best_plan.find(S) == best_plan.end()) {
                 best_plan[S] = A;

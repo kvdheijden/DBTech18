@@ -21,7 +21,7 @@ protected:
     explicit QueryPlan(float cost) : cost(cost) {};
 public:
     virtual std::shared_ptr<InterGraph> execute() = 0;
-    const float cost;
+    float cost;
 };
 
 class ProjectionAlgorithm : public QueryPlan {
